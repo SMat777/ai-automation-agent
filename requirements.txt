@@ -1,0 +1,8 @@
+# AI Agent dependencies
+anthropic>=0.42.0
+python-dotenv>=1.0.0
+
+# Development & testing
+pytest>=8.0.0
+ruff>=0.8.0
+mypy>=1.13.0
