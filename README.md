@@ -132,8 +132,7 @@ ai-automation-agent/
 │   │       └── clean.ts    # Data cleaning utilities
 ├── docs/                   # Documentation
 │   ├── ARCHITECTURE.md     # Technical architecture deep-dive
-│   ├── LEARNING.md         # Learning journal
-│   └── guides/             # Topic-specific learning guides
+│   └── LEARNING.md         # Learning journal
 ├── tests/                  # Test suites
 │   ├── agent/              # Python agent tests
 │   │   └── test_agent.py
@@ -172,16 +171,6 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow guide.
 - **Phase 2**: TypeScript automation pipeline (1 workflow)
 - **Phase 3**: Integration (agent triggers pipeline, pipeline feeds agent)
 - **Phase 4**: Tests, documentation polish, v1.0 release
-
-## Learning Resources
-
-Guides written during development are available in [`docs/guides/`](docs/guides/):
-
-- Python for Java/JS Developers
-- AI Agents 101 — Architecture & Tool Calling
-- Automation & Workflow Orchestration
-- Claude API & SDK Deep-Dive
-- GitHub Project Management Best Practices
 
 ## Tech Stack
 
