@@ -1,19 +1,16 @@
 /**
- * Data Cleaning Transform — Removes null values and normalizes data.
+ * Data Cleaning Transform — Removes null values, trims strings, deduplicates.
  */
+
+type Record_ = Record<string, unknown>;
 
 /**
  * Clean an array of records by removing null/undefined values
  * and trimming string fields.
- *
- * @param data - Array of records to clean
- * @returns Cleaned records
  */
-export function cleanData(
-  data: Record<string, unknown>[]
-): Record<string, unknown>[] {
+export function cleanData(data: Record_[]): Record_[] {
   return data.map((record) => {
-    const cleaned: Record<string, unknown> = {};
+    const cleaned: Record_ = {};
 
     for (const [key, value] of Object.entries(record)) {
       if (value === null || value === undefined) continue;
@@ -26,5 +23,18 @@ export function cleanData(
     }
 
     return cleaned;
+  });
+}
+
+/**
+ * Remove duplicate records based on a key field.
+ */
+export function deduplicate(data: Record_[], keyField: string): Record_[] {
+  const seen = new Set<unknown>();
+  return data.filter((record) => {
+    const key = record[keyField];
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
   });
 }
