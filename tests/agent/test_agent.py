@@ -28,8 +28,8 @@ class TestToolRegistry:
             assert tool["input_schema"]["type"] == "object"
 
     def test_tool_count(self) -> None:
-        assert len(TOOLS) == 3
-        assert len(TOOL_HANDLERS) == 3
+        assert len(TOOLS) == 4
+        assert len(TOOL_HANDLERS) == 4
 
 
 class TestAgentResult:
