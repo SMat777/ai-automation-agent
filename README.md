@@ -118,6 +118,19 @@ cd automation && npm start
 python demo.py
 ```
 
+### Docker
+
+```bash
+# Build and run both components
+docker compose up --build
+
+# Run agent only
+docker compose run agent python -m agent.main "Analyze this document"
+
+# Run pipeline only
+docker compose run pipeline
+```
+
 ### Test
 
 ```bash
