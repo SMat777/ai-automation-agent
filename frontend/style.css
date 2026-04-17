@@ -1,0 +1,545 @@
+/* ── Reset & Base ──────────────────────────────────────────────────────────── */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg-primary: #0f1117;
+  --bg-secondary: #1a1d27;
+  --bg-card: #21242f;
+  --bg-input: #181b24;
+  --border: #2d3348;
+  --border-focus: #5b6eae;
+  --text-primary: #e4e6ee;
+  --text-secondary: #8b90a5;
+  --text-muted: #585e75;
+  --accent: #6c7fd8;
+  --accent-hover: #8194e8;
+  --accent-glow: rgba(108, 127, 216, 0.15);
+  --success: #4caf7d;
+  --error: #d45858;
+  --warning: #d4a038;
+  --radius: 10px;
+  --radius-sm: 6px;
+  --transition: 0.2s ease;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* ── App Layout ───────────────────────────────────────────────────────────── */
+
+.app {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+
+/* ── Header ───────────────────────────────────────────────────────────────── */
+
+header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  margin-bottom: 0.4rem;
+}
+
+.logo-icon {
+  font-size: 1.6rem;
+}
+
+header h1 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.subtitle {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+.status-bar {
+  margin-top: 0.8rem;
+  font-size: 0.8rem;
+  min-height: 1.4em;
+}
+
+.status-bar .status-ok {
+  color: var(--success);
+}
+
+.status-bar .status-warn {
+  color: var(--warning);
+}
+
+/* ── Tool Navigation ──────────────────────────────────────────────────────── */
+
+.tool-nav {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 1.5rem;
+  background: var(--bg-secondary);
+  padding: 0.35rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+
+.tool-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.7rem 1rem;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.tool-tab:hover {
+  color: var(--text-primary);
+  background: var(--bg-card);
+}
+
+.tool-tab.active {
+  color: var(--text-primary);
+  background: var(--accent);
+  box-shadow: 0 2px 8px rgba(108, 127, 216, 0.3);
+}
+
+.tab-icon {
+  font-size: 1rem;
+}
+
+/* ── Tool Panels ──────────────────────────────────────────────────────────── */
+
+.tool-panel {
+  display: none;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  animation: fadeIn 0.25s ease;
+}
+
+.tool-panel.active {
+  display: block;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.panel-header {
+  margin-bottom: 1.2rem;
+}
+
+.panel-header h2 {
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin-bottom: 0.2rem;
+}
+
+.panel-header p {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+/* ── Form Elements ────────────────────────────────────────────────────────── */
+
+.input-group {
+  margin-bottom: 1rem;
+  flex: 1;
+}
+
+.input-group label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 0.35rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.hint {
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+textarea, input[type="text"], input[type="number"], select {
+  width: 100%;
+  padding: 0.7rem 0.85rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-family: inherit;
+  transition: border-color var(--transition), box-shadow var(--transition);
+  outline: none;
+}
+
+textarea {
+  resize: vertical;
+  min-height: 120px;
+  line-height: 1.5;
+}
+
+textarea:focus, input:focus, select:focus {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+textarea::placeholder, input::placeholder {
+  color: var(--text-muted);
+}
+
+.input-row {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-end;
+}
+
+/* ── Buttons ──────────────────────────────────────────────────────────────── */
+
+.btn-run {
+  padding: 0.7rem 1.6rem;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+  white-space: nowrap;
+  height: fit-content;
+}
+
+.btn-run:hover {
+  background: var(--accent-hover);
+  box-shadow: 0 2px 12px rgba(108, 127, 216, 0.3);
+}
+
+.btn-run:active {
+  transform: scale(0.97);
+}
+
+.btn-run:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-run.loading {
+  position: relative;
+  color: transparent;
+}
+
+.btn-run.loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0 -9px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Result Area ──────────────────────────────────────────────────────────── */
+
+.result-area {
+  margin-top: 1.5rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  animation: slideUp 0.3s ease;
+}
+
+.result-area.hidden {
+  display: none;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.result-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.result-header h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.result-meta {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.result-content {
+  padding: 1.5rem;
+}
+
+/* ── Result Renderers ─────────────────────────────────────────────────────── */
+
+.result-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.result-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 1rem;
+}
+
+.result-card h4 {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  margin-bottom: 0.6rem;
+}
+
+.result-card.full-width {
+  grid-column: 1 / -1;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.3rem 0;
+  font-size: 0.88rem;
+}
+
+.stat-row .label {
+  color: var(--text-secondary);
+}
+
+.stat-row .value {
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.tag {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  background: var(--accent-glow);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 0.8rem;
+  color: var(--accent);
+  margin: 0.15rem 0.2rem 0.15rem 0;
+}
+
+.tag.type-tag {
+  background: rgba(76, 175, 125, 0.12);
+  border-color: rgba(76, 175, 125, 0.25);
+  color: var(--success);
+  font-weight: 600;
+}
+
+.tag.method-tag {
+  background: rgba(212, 160, 56, 0.12);
+  border-color: rgba(212, 160, 56, 0.25);
+  color: var(--warning);
+}
+
+.entity-list {
+  list-style: none;
+  padding: 0;
+}
+
+.entity-list li {
+  padding: 0.25rem 0;
+  font-size: 0.88rem;
+  color: var(--text-primary);
+}
+
+.entity-list li::before {
+  content: '→ ';
+  color: var(--text-muted);
+}
+
+.key-point {
+  padding: 0.5rem 0;
+  font-size: 0.88rem;
+  border-bottom: 1px solid var(--border);
+  line-height: 1.5;
+}
+
+.key-point:last-child {
+  border-bottom: none;
+}
+
+.extracted-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.extracted-table th,
+.extracted-table td {
+  padding: 0.5rem 0.7rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.88rem;
+}
+
+.extracted-table th {
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.summary-text {
+  font-size: 0.92rem;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+.pipeline-output {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  background: var(--bg-input);
+  padding: 1rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  overflow-x: auto;
+}
+
+.error-message {
+  color: var(--error);
+  background: rgba(212, 88, 88, 0.08);
+  border: 1px solid rgba(212, 88, 88, 0.2);
+  border-radius: var(--radius-sm);
+  padding: 1rem;
+  font-size: 0.9rem;
+}
+
+/* ── Pipeline info ────────────────────────────────────────────────────────── */
+
+.pipeline-info {
+  margin-top: 1rem;
+}
+
+.info-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 1rem;
+}
+
+.info-card h4 {
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  margin-bottom: 0.4rem;
+}
+
+.info-card p {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+/* ── Footer ───────────────────────────────────────────────────────────────── */
+
+footer {
+  text-align: center;
+  margin-top: 3rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+footer p {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+footer a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+footer a:hover {
+  text-decoration: underline;
+}
+
+/* ── Responsive ───────────────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .app {
+    padding: 1rem;
+  }
+
+  .tool-nav {
+    flex-wrap: wrap;
+  }
+
+  .tool-tab {
+    flex: 1 1 calc(50% - 0.2rem);
+    font-size: 0.82rem;
+    padding: 0.6rem 0.5rem;
+  }
+
+  .input-row {
+    flex-direction: column;
+  }
+
+  .result-grid {
+    grid-template-columns: 1fr;
+  }
+
+  header h1 {
+    font-size: 1.3rem;
+  }
+}

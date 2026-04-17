@@ -108,13 +108,16 @@ cp .env.example .env
 ### Run
 
 ```bash
-# AI agent
+# Web UI (recommended) — open http://localhost:8000
+uvicorn server:app --reload
+
+# CLI — AI agent
 python -m agent.main "Analyze this document and extract key metrics"
 
-# Automation pipeline
+# CLI — automation pipeline
 cd automation && npm start
 
-# End-to-end demo (agent + pipeline)
+# CLI — end-to-end demo (agent + pipeline)
 python demo.py
 ```
 
