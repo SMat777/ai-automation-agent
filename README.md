@@ -1,5 +1,10 @@
 # AI Automation Agent
 
+[![CI](https://github.com/SMat777/ai-automation-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/SMat777/ai-automation-agent/actions/workflows/ci.yml)
+[![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/)
+[![TypeScript 5.7](https://img.shields.io/badge/typescript-5.7-blue.svg)](https://www.typescriptlang.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 An intelligent automation system that combines AI-driven reasoning with composable data pipelines to automate document analysis, data extraction, and reporting workflows.
 
 ## What It Does
