@@ -39,3 +39,6 @@ coverage/
 
 # OS
 Thumbs.db
+
+# Internal planning documents
+UPGRADE-PLAN.md
