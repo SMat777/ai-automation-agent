@@ -1,4 +1,6 @@
-"""Summarization tool — creates concise summaries of text content."""
+"""Summarization tool — AI-powered with extractive fallback."""
+
+from anthropic import Anthropic
 
 SUMMARIZE_TOOL = {
     "name": "summarize",
@@ -32,30 +34,76 @@ SUMMARIZE_TOOL = {
 
 
 def handle_summarize(
-    text: str, format: str = "bullets", max_points: int = 5
+    text: str,
+    format: str = "bullets",
+    max_points: int = 5,
+    api_key: str | None = None,
 ) -> dict:
     """Summarize text content.
+
+    Uses Claude API when api_key is provided, otherwise falls back
+    to extractive summarization (no API needed).
 
     Args:
         text: The text to summarize.
         format: Output format ('bullets' or 'paragraph').
         max_points: Max bullet points for 'bullets' format.
+        api_key: Anthropic API key. If None, uses extractive fallback.
 
     Returns:
-        Dictionary with summary and metadata.
+        Dictionary with summary, format, method used, and metadata.
     """
     sentences = [s.strip() for s in text.replace("\n", " ").split(".") if s.strip()]
     word_count = len(text.split())
 
-    if format == "bullets":
-        points = sentences[:max_points]
-        summary = "\n".join(f"- {point}." for point in points)
+    if api_key:
+        summary = _ai_summarize(text, format, max_points, api_key)
+        method = "ai"
     else:
-        summary = ". ".join(sentences[:3]) + "."
+        summary = _extractive_summarize(sentences, format, max_points)
+        method = "extractive"
 
     return {
         "summary": summary,
         "format": format,
+        "method": method,
         "original_word_count": word_count,
         "sentence_count": len(sentences),
     }
+
+
+def _ai_summarize(text: str, format: str, max_points: int, api_key: str) -> str:
+    """Use Claude to generate a genuine summary."""
+    client = Anthropic(api_key=api_key)
+
+    format_instruction = (
+        f"Return exactly {max_points} bullet points, each starting with '- '"
+        if format == "bullets"
+        else "Return a single concise paragraph"
+    )
+
+    response = client.messages.create(
+        model="claude-sonnet-4-20250514",
+        max_tokens=1024,
+        messages=[
+            {
+                "role": "user",
+                "content": (
+                    f"Summarize the following text. {format_instruction}.\n"
+                    f"Focus on the most important information.\n\n"
+                    f"Text:\n{text}"
+                ),
+            }
+        ],
+    )
+    return response.content[0].text
+
+
+def _extractive_summarize(
+    sentences: list[str], format: str, max_points: int
+) -> str:
+    """Fallback: simple extractive summarization (no API needed)."""
+    if format == "bullets":
+        points = sentences[:max_points]
+        return "\n".join(f"- {point}." for point in points)
+    return ". ".join(sentences[:3]) + "."
