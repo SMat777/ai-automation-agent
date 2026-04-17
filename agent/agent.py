@@ -47,6 +47,27 @@ class AgentResult:
         return [s for s in self.steps if s.action == "tool_call"]
 
 
+class StreamResult:
+    """Wrapper for streaming agent output.
+
+    Iterate to get text chunks. After iteration completes,
+    access .result for the full AgentResult with metadata.
+
+    Usage:
+        stream = agent.run_stream("Summarize this report")
+        for chunk in stream:
+            print(chunk, end="", flush=True)
+        print(f"Tokens used: {stream.result.total_input_tokens}")
+    """
+
+    def __init__(self, generator: Generator[str, None, AgentResult]) -> None:
+        self._generator = generator
+        self.result: AgentResult | None = None
+
+    def __iter__(self) -> Generator[str, None, None]:
+        self.result = yield from self._generator
+
+
 class Agent:
     """AI agent that reasons about tasks and calls tools to accomplish them.
 
@@ -184,7 +205,7 @@ class Agent:
 
     def run_stream(
         self, task: str, max_iterations: int = 10
-    ) -> Generator[str, None, AgentResult]:
+    ) -> StreamResult:
         """Run the agent on a task, yielding text chunks as they stream in.
 
         Same ReAct loop as run(), but uses the streaming API so text arrives
@@ -192,19 +213,24 @@ class Agent:
         segments.
 
         Usage:
-            gen = agent.run_stream("Summarize this report")
-            for chunk in gen:
+            stream = agent.run_stream("Summarize this report")
+            for chunk in stream:
                 print(chunk, end="", flush=True)
-            result = gen.value  # AgentResult available after iteration
+            print(stream.result.answer)  # AgentResult available after iteration
 
         Args:
             task: The user's task description.
             max_iterations: Safety limit for the agent loop.
 
         Returns:
-            Generator yielding text chunks. The final AgentResult is
-            available via generator.value after StopIteration.
+            StreamResult — iterate for text chunks, then access .result for metadata.
         """
+        return StreamResult(self._stream_generator(task, max_iterations))
+
+    def _stream_generator(
+        self, task: str, max_iterations: int
+    ) -> Generator[str, None, AgentResult]:
+        """Internal generator for streaming. Use run_stream() instead."""
         start_time = time.monotonic()
         messages: list[MessageParam] = [{"role": "user", "content": task}]
         result = AgentResult(answer="")

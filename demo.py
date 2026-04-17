@@ -60,16 +60,11 @@ def main() -> None:
 
     if args.stream:
         print("[Streaming mode]\n")
-        gen = agent.run_stream(args.task)
-        try:
-            for chunk in gen:
-                print(chunk, end="", flush=True)
-        except StopIteration as e:
-            result = e.value
-        else:
-            # Generator returned normally (Python 3.3+ return in generator)
-            result = None
+        stream = agent.run_stream(args.task)
+        for chunk in stream:
+            print(chunk, end="", flush=True)
         print()
+        result = stream.result
     else:
         result = agent.run(args.task)
 
