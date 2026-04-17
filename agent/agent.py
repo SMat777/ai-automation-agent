@@ -6,6 +6,7 @@ import json
 import logging
 import time
 from dataclasses import dataclass, field
+from collections.abc import Generator
 from typing import Any, Callable, cast
 
 from anthropic import APIError, APITimeoutError, Anthropic, RateLimitError
@@ -179,6 +180,110 @@ class Agent:
             result.total_output_tokens,
             result.total_duration_ms,
         )
+        return result
+
+    def run_stream(
+        self, task: str, max_iterations: int = 10
+    ) -> Generator[str, None, AgentResult]:
+        """Run the agent on a task, yielding text chunks as they stream in.
+
+        Same ReAct loop as run(), but uses the streaming API so text arrives
+        incrementally. Tool calls still execute synchronously between stream
+        segments.
+
+        Usage:
+            gen = agent.run_stream("Summarize this report")
+            for chunk in gen:
+                print(chunk, end="", flush=True)
+            result = gen.value  # AgentResult available after iteration
+
+        Args:
+            task: The user's task description.
+            max_iterations: Safety limit for the agent loop.
+
+        Returns:
+            Generator yielding text chunks. The final AgentResult is
+            available via generator.value after StopIteration.
+        """
+        start_time = time.monotonic()
+        messages: list[MessageParam] = [{"role": "user", "content": task}]
+        result = AgentResult(answer="")
+
+        logger.info("Agent (stream) started | task: %s", task[:100])
+
+        for iteration in range(1, max_iterations + 1):
+            result.iterations = iteration
+
+            with self.client.messages.stream(
+                model=self.model,
+                max_tokens=4096,
+                system=AGENT_SYSTEM_PROMPT,
+                tools=self.tools,
+                messages=messages,
+            ) as stream:
+                for text in stream.text_stream:
+                    yield text
+
+            response = stream.get_final_message()
+
+            result.total_input_tokens += response.usage.input_tokens
+            result.total_output_tokens += response.usage.output_tokens
+
+            for block in response.content:
+                if block.type == "text" and block.text.strip():
+                    result.steps.append(AgentStep(
+                        iteration=iteration,
+                        action="think",
+                        text=block.text,
+                    ))
+
+            if response.stop_reason == "end_turn":
+                answer = self._extract_text(response)
+                result.answer = answer
+                result.steps.append(AgentStep(
+                    iteration=iteration,
+                    action="final_answer",
+                    text=answer,
+                ))
+                break
+
+            if response.stop_reason == "tool_use":
+                messages.append({"role": "assistant", "content": response.content})
+
+                tool_results: list[ToolResultBlockParam] = []
+                for block in response.content:
+                    if block.type == "tool_use":
+                        step_start = time.monotonic()
+                        tool_input = cast(dict[str, Any], block.input)
+                        tool_output = self._execute_tool(block.name, tool_input)
+                        duration_ms = int((time.monotonic() - step_start) * 1000)
+
+                        result.steps.append(AgentStep(
+                            iteration=iteration,
+                            action="tool_call",
+                            tool_name=block.name,
+                            tool_input=tool_input,
+                            tool_result=tool_output,
+                            duration_ms=duration_ms,
+                        ))
+
+                        tool_results.append({
+                            "type": "tool_result",
+                            "tool_use_id": block.id,
+                            "content": json.dumps(tool_output, default=str),
+                        })
+
+                messages.append({"role": "user", "content": tool_results})
+            else:
+                result.answer = self._extract_text(response)
+                break
+        else:
+            result.answer = (
+                f"Agent reached maximum iterations ({max_iterations}) "
+                "without completing the task."
+            )
+
+        result.total_duration_ms = int((time.monotonic() - start_time) * 1000)
         return result
 
     def _call_api(self, messages: list[MessageParam]) -> Message:
