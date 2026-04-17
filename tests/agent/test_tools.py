@@ -100,10 +100,10 @@ class TestAnalyzeKeyPoints:
 
 class TestExtractKeyValue:
     def test_extracts_basic_fields(self) -> None:
-        text = "Company: Northwind Traders\nLocation: Copenhagen"
+        text = "Company: Columbus Global\nLocation: Aarhus"
         result = handle_extract(text, ["Company", "Location"], strategy="key_value")
-        assert result["extracted"]["Company"] == "Northwind Traders"
-        assert result["extracted"]["Location"] == "Copenhagen"
+        assert result["extracted"]["Company"] == "Columbus Global"
+        assert result["extracted"]["Location"] == "Aarhus"
 
     def test_case_insensitive(self) -> None:
         text = "company: Test Corp"
@@ -111,9 +111,9 @@ class TestExtractKeyValue:
         assert result["extracted"]["Company"] == "Test Corp"
 
     def test_handles_underscored_fields(self) -> None:
-        text = "Company Name: Acme Corp"
+        text = "Company Name: Columbus"
         result = handle_extract(text, ["company_name"], strategy="key_value")
-        assert result["extracted"]["company_name"] == "Acme Corp"
+        assert result["extracted"]["company_name"] == "Columbus"
 
     def test_reports_missing(self) -> None:
         result = handle_extract("Random text", ["Name"], strategy="key_value")
@@ -150,16 +150,16 @@ class TestExtractList:
 class TestExtractAuto:
     def test_auto_combines_strategies(self) -> None:
         text = (
-            "Company: Northwind Traders\n\n"
-            "| Role | Status |\n|------|--------|\n| Engineer | Active |\n\n"
-            "- Location: Copenhagen"
+            "Company: Columbus\n\n"
+            "| Role | Status |\n|------|--------|\n| Intern | Active |\n\n"
+            "- Location: Aarhus"
         )
         result = handle_extract(
             text, ["Company", "Role", "Location"], strategy="auto"
         )
-        assert result["extracted"]["Company"] == "Northwind Traders"
-        assert result["extracted"]["Role"] == "Engineer"
-        assert result["extracted"]["Location"] == "Copenhagen"
+        assert result["extracted"]["Company"] == "Columbus"
+        assert result["extracted"]["Role"] == "Intern"
+        assert result["extracted"]["Location"] == "Aarhus"
         assert result["strategy"] == "auto"
         assert len(result["strategies_used"]) > 0
 
