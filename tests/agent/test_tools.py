@@ -60,6 +60,12 @@ class TestAnalyzeEntities:
         entities = handle_analyze(text)["entities"]
         assert len(entities["urls"]) == 2
 
+    def test_extracts_organizations_with_suffix(self) -> None:
+        text = "We partnered with Columbus A/S and Acme Corp. last year."
+        entities = handle_analyze(text)["entities"]
+        assert "Columbus A/S" in entities["organizations"]
+        assert "Acme Corp." in entities["organizations"]
+
     def test_no_entities_in_plain_text(self) -> None:
         entities = handle_analyze("Hello world")["entities"]
         assert entities["emails"] == []
