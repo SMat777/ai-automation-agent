@@ -116,17 +116,12 @@ def _extract_entities(text: str) -> dict[str, list[str]]:
     # Organizations (words followed by A/S, Inc, Ltd, etc.)
     org_matches = re.findall(
         r"([A-Z][a-zA-ZæøåÆØÅ]+(?:\s+[A-Z][a-zA-ZæøåÆØÅ]+)*)\s+"
-        r"(?:A/S|ApS|Inc\.?|Ltd\.?|GmbH|Corp\.?|AS|AB)",
+        r"(A/S|ApS|Inc\.?|Ltd\.?|GmbH|Corp\.?|AS|AB)",
         text,
     )
     entities["organizations"] = list(set(
-        f"{name} {suffix}" for name, suffix in
-        re.findall(
-            r"([A-Z][a-zA-ZæøåÆØÅ]+(?:\s+[A-Z][a-zA-ZæøåÆØÅ]+)*)\s+"
-            r"(A/S|ApS|Inc\.?|Ltd\.?|GmbH|Corp\.?|AS|AB)",
-            text,
-        )
-    )) if not org_matches else list(set(org_matches))
+        f"{name} {suffix}" for name, suffix in org_matches
+    ))
 
     return entities
 
