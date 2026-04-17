@@ -68,5 +68,11 @@ jobs:
       - name: Lint
         run: npx eslint src/
 
-      - name: Run tests
-        run: npm test
+      - name: Run tests with coverage
+        run: npm run test:coverage
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-typescript
+          path: automation/coverage/
