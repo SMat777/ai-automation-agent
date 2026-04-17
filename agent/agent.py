@@ -66,6 +66,7 @@ class Agent:
         model: str = "claude-sonnet-4-20250514",
         max_retries: int = 3,
     ) -> None:
+        self.api_key = api_key
         self.client = Anthropic(api_key=api_key)
         self.model = model
         self.max_retries = max_retries
@@ -223,6 +224,8 @@ class Agent:
             return {"error": f"Unknown tool: {name}"}
 
         try:
+            if name == "summarize":
+                params["api_key"] = self.api_key
             return handler(**params)
         except Exception as e:
             logger.error("Tool '%s' failed: %s", name, e)
