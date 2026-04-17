@@ -33,10 +33,16 @@ jobs:
       - name: Type check with mypy
         run: mypy agent/ --ignore-missing-imports
 
-      - name: Run tests
-        run: pytest tests/agent/ -v
+      - name: Run tests with coverage
+        run: pytest tests/agent/ -v --cov=agent --cov-report=term-missing --cov-report=xml:coverage-python.xml
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-python
+          path: coverage-python.xml
 
   typescript:
     name: TypeScript Automation
