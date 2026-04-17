@@ -96,7 +96,10 @@ def _ai_summarize(text: str, format: str, max_points: int, api_key: str) -> str:
             }
         ],
     )
-    return response.content[0].text
+    block = response.content[0]
+    if hasattr(block, "text"):
+        return block.text  # type: ignore[union-attr]
+    return str(block)
 
 
 def _extractive_summarize(

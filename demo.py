@@ -8,13 +8,16 @@ This demonstrates the full integration:
 5. Agent produces a final human-readable report
 
 Usage:
-    python demo.py
+    python demo.py                  # Standard (sync) mode
+    python demo.py --stream         # Streaming mode (real-time output)
+    python demo.py "Custom task"    # Custom task
 
 Requires:
     - ANTHROPIC_API_KEY in .env
     - npm install in automation/
 """
 
+import argparse
 import logging
 import os
 import sys
@@ -23,9 +26,21 @@ from dotenv import load_dotenv
 
 from agent.agent import Agent
 
+DEFAULT_TASK = (
+    "I need a report on user posting activity. "
+    "Run the data pipeline to fetch and aggregate post data, "
+    "then analyze the results and give me a summary of which users "
+    "are most active and what the overall posting patterns look like."
+)
+
 
 def main() -> None:
     load_dotenv()
+
+    parser = argparse.ArgumentParser(description="AI Automation Agent Demo")
+    parser.add_argument("task", nargs="?", default=DEFAULT_TASK, help="Task for the agent")
+    parser.add_argument("--stream", action="store_true", help="Enable streaming output")
+    args = parser.parse_args()
 
     logging.basicConfig(
         level=logging.INFO,
@@ -40,29 +55,36 @@ def main() -> None:
 
     agent = Agent(api_key=api_key)
 
-    task = (
-        "I need a report on user posting activity. "
-        "Run the data pipeline to fetch and aggregate post data, "
-        "then analyze the results and give me a summary of which users "
-        "are most active and what the overall posting patterns look like."
-    )
-
-    print(f"Task: {task}\n")
+    print(f"Task: {args.task}\n")
     print("=" * 60)
 
-    result = agent.run(task)
+    if args.stream:
+        print("[Streaming mode]\n")
+        gen = agent.run_stream(args.task)
+        try:
+            for chunk in gen:
+                print(chunk, end="", flush=True)
+        except StopIteration as e:
+            result = e.value
+        else:
+            # Generator returned normally (Python 3.3+ return in generator)
+            result = None
+        print()
+    else:
+        result = agent.run(args.task)
 
-    print("\n" + "=" * 60)
-    print("FINAL REPORT")
-    print("=" * 60)
-    print(result.answer)
-    print(f"\n--- Stats ---")
-    print(f"Iterations: {result.iterations}")
-    print(f"Tool calls: {len(result.tool_calls)}")
-    for step in result.tool_calls:
-        print(f"  - {step.tool_name} ({step.duration_ms}ms)")
-    print(f"Tokens: {result.total_input_tokens} in + {result.total_output_tokens} out")
-    print(f"Duration: {result.total_duration_ms}ms")
+    if result:
+        print("\n" + "=" * 60)
+        print("FINAL REPORT")
+        print("=" * 60)
+        print(result.answer)
+        print(f"\n--- Stats ---")
+        print(f"Iterations: {result.iterations}")
+        print(f"Tool calls: {len(result.tool_calls)}")
+        for step in result.tool_calls:
+            print(f"  - {step.tool_name} ({step.duration_ms}ms)")
+        print(f"Tokens: {result.total_input_tokens} in + {result.total_output_tokens} out")
+        print(f"Duration: {result.total_duration_ms}ms")
 
 
 if __name__ == "__main__":
