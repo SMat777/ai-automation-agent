@@ -1,194 +1,212 @@
 # AI Automation Agent
 
-An AI-powered automation agent that demonstrates **agent architecture**, **tool calling**, and **workflow automation** using Python and TypeScript.
+En AI-drevet automationsagent der demonstrerer **agentarkitektur**, **tool calling** og **workflow-automatisering** med Python og TypeScript.
 
-Built as a learning project to explore how AI agents can automate real business tasks — from document analysis to data extraction pipelines.
+Projektet viser hvordan en AI-agent kan automatisere forretningsopgaver – fra dokumentanalyse og dataudtræk til rapportering via en automationspipeline.
 
-## What This Project Demonstrates
+## Hvad gør programmet?
 
-| Skill | Technology | Where |
-|-------|-----------|-------|
-| AI Agent Architecture | Python, Claude API | `agent/` |
-| Tool Calling & Decision Logic | Anthropic SDK, function tools | `agent/tools/` |
-| Automation Workflows | TypeScript, Node.js | `automation/` |
-| API Integration | REST, connectors | `automation/connectors/` |
-| Testing | pytest, vitest | `tests/` |
-| CI/CD | GitHub Actions | `.github/workflows/` |
-| Documentation | Markdown, Architecture Docs | `docs/` |
+Programmet består af to dele der arbejder sammen:
 
-## Architecture
+1. **AI-agenten** (Python) modtager en opgave i naturligt sprog, ræsonnerer om hvilke tools der skal bruges, kalder dem og sammenfatter resultaterne
+2. **Automationspipelinen** (TypeScript) henter data fra API'er, transformerer det i flere trin og producerer struktureret output
+
+Agenten kan trigge pipelinen, og pipelinen kan føde resultater tilbage til agenten – en komplet feedback-loop fra opgave til rapport.
+
+### Eksempel
+
+```bash
+# Kør AI-agenten med en opgave
+python -m agent.main "Analysér dette dokument og udtræk nøgletal"
+```
+
+Agenten vil:
+1. Analysere dokumentet (type, struktur, entiteter)
+2. Trække strukturerede data ud (nøgle-værdi, tabeller, lister)
+3. Sammenfatte resultaterne i en rapport
+
+```bash
+# Kør automationspipelinen direkte
+cd automation && npm start
+```
+
+Pipelinen vil:
+1. Hente data fra en REST API
+2. Rense og transformere data (fjern null-værdier, dedupliker, filtrer)
+3. Aggregere resultater grupperet efter bruger
+4. Formatere output som markdown-tabel
+
+## Arkitektur
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│                        User / Trigger                        │
+│                      Bruger / Trigger                        │
 └─────────────────────────────┬────────────────────────────────┘
                               │
                               v
 ┌──────────────────────────────────────────────────────────────┐
 │                     AI Agent (Python)                         │
 │  ┌─────────────┐  ┌──────────────┐  ┌─────────────────────┐ │
-│  │ Agent Core   │  │ Tool Router  │  │ Prompt Templates    │ │
-│  │ (Decision    │──│ (Selects &   │  │ (System prompts,    │ │
-│  │  Loop)       │  │  executes    │  │  few-shot examples) │ │
+│  │ Agentkerne   │  │ Tool Router  │  │ Prompt-skabeloner   │ │
+│  │ (ReAct-loop) │──│ (Vælger og   │  │ (Systemprompts,     │ │
+│  │              │  │  eksekverer  │  │  few-shot examples) │ │
 │  └─────────────┘  │  tools)      │  └─────────────────────┘ │
 │                    └──────┬───────┘                           │
 │                           │                                   │
 │  ┌────────────┐  ┌───────┴──────┐  ┌───────────────────┐    │
-│  │ Analyze    │  │ Extract      │  │ Summarize         │    │
-│  │ Document   │  │ Data         │  │ Report            │    │
+│  │ Analysér   │  │ Udtræk       │  │ Opsummér          │    │
+│  │ dokument   │  │ data         │  │ rapport           │    │
 │  └────────────┘  └──────────────┘  └───────────────────┘    │
 └──────────────────────────────┬───────────────────────────────┘
                                │
                                v
 ┌──────────────────────────────────────────────────────────────┐
-│                Automation Pipeline (TypeScript)                │
+│                Automationspipeline (TypeScript)                │
 │  ┌─────────────┐  ┌──────────────┐  ┌─────────────────────┐ │
 │  │ Connectors  │──│ Transforms   │──│ Output              │ │
-│  │ (API/File)  │  │ (Clean/Map)  │  │ (Report/Notify)     │ │
+│  │ (API/Fil)   │  │ (Rens/Map)   │  │ (Rapport/Notif.)    │ │
 │  └─────────────┘  └──────────────┘  └─────────────────────┘ │
 └──────────────────────────────────────────────────────────────┘
 ```
 
-**Agent** (Python): Receives a task, reasons about which tools to use, calls them, and synthesizes results.
+**Agent** (Python): Modtager en opgave, ræsonnerer om hvilke tools der skal bruges, kalder dem og sammenfatter resultaterne. Bruger ReAct-mønsteret (Reasoning + Acting) med iterativ beslutningslogik.
 
-**Automation Pipeline** (TypeScript): Orchestrates multi-step data flows — fetching from APIs, transforming data, and producing structured output.
+**Automationspipeline** (TypeScript): Orkestrerer datatransformationer i flere trin – henter fra API'er, renser og transformerer data, og producerer struktureret output med fuld typesikkerhed via Zod.
 
-**Integration**: The agent can trigger automation pipelines, and pipelines can feed results back to the agent for further analysis.
+**Integration**: Agenten kan trigge automationspipelines via `run_pipeline`-toolet, og pipelineresultater fødes tilbage til agenten for videre analyse.
 
-## Getting Started
+## Hvad projektet demonstrerer
 
-### Prerequisites
+| Kompetence | Teknologi | Placering |
+|------------|-----------|-----------|
+| AI-agentarkitektur (ReAct-loop) | Python, Claude API | `agent/` |
+| Tool calling og beslutningslogik | Anthropic SDK, function tools | `agent/tools/` |
+| Automationsworkflows | TypeScript, Node.js | `automation/` |
+| API-integration med retry og fejlhåndtering | REST, Zod-validering | `automation/connectors/` |
+| Test (79 tests) | pytest, vitest | `tests/` |
+| CI/CD | GitHub Actions | `.github/workflows/` |
+
+## Kom i gang
+
+### Forudsætninger
 
 - Python 3.11+
 - Node.js 20+
-- An Anthropic API key ([get one here](https://console.anthropic.com/))
+- En Anthropic API-nøgle ([hent her](https://console.anthropic.com/))
 
-### Setup
+### Opsætning
 
 ```bash
-# Clone the repo
+# Klon repoet
 git clone https://github.com/SMat777/ai-automation-agent.git
 cd ai-automation-agent
 
-# Python setup
+# Python-opsætning
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 
-# TypeScript setup
+# TypeScript-opsætning
 cd automation
 npm install
 cd ..
 
-# Environment
+# Miljøvariabler
 cp .env.example .env
-# Add your ANTHROPIC_API_KEY to .env
+# Tilføj din ANTHROPIC_API_KEY i .env
 ```
 
-### Run
+### Kør
 
 ```bash
-# Run the AI agent
+# Kør AI-agenten
 python -m agent.main "Analyze this document and extract key metrics"
 
-# Run the automation pipeline
+# Kør automationspipelinen
 cd automation && npm start
+
+# Kør end-to-end demo (agent + pipeline)
+python demo.py
 ```
 
 ### Test
 
 ```bash
-# Python tests
+# Python-tests
 pytest tests/agent/ -v
 
-# TypeScript tests
+# TypeScript-tests
 cd automation && npm test
 ```
 
-## Project Structure
+## Projektstruktur
 
 ```
 ai-automation-agent/
 ├── agent/                  # Python – AI Agent
-│   ├── __init__.py
-│   ├── main.py             # Entry point & agent loop
-│   ├── agent.py            # Core agent with decision logic
-│   ├── tools/              # Tool implementations
-│   │   ├── __init__.py
-│   │   ├── analyze.py      # Document analysis tool
-│   │   ├── extract.py      # Data extraction tool
-│   │   └── summarize.py    # Report summarization tool
-│   └── prompts/            # Prompt templates
-│       └── system.py       # System prompts
-├── automation/             # TypeScript – Automation Pipeline
-│   ├── package.json
-│   ├── tsconfig.json
+│   ├── main.py             # Indgangspunkt og agentloop
+│   ├── agent.py            # Agentkerne med beslutningslogik
+│   ├── tools/              # Tool-implementeringer
+│   │   ├── analyze.py      # Dokumentanalyse (type, entiteter, nøglepunkter)
+│   │   ├── extract.py      # Dataudtræk (nøgle-værdi, tabel, liste)
+│   │   ├── summarize.py    # Rapportopsummering
+│   │   └── pipeline.py     # Pipeline-trigger tool
+│   └── prompts/
+│       └── system.py       # Systemprompts
+├── automation/             # TypeScript – Automationspipeline
 │   ├── src/
-│   │   ├── index.ts        # Pipeline entry point
-│   │   ├── pipeline.ts     # Workflow orchestration
-│   │   ├── connectors/     # Data source connectors
-│   │   │   └── api.ts      # REST API connector
-│   │   └── transforms/     # Data transformations
-│   │       └── clean.ts    # Data cleaning utilities
-├── docs/                   # Documentation
-│   ├── ARCHITECTURE.md     # Technical architecture deep-dive
-│   └── LEARNING.md         # Learning journal
-├── tests/                  # Test suites
-│   ├── agent/              # Python agent tests
-│   │   └── test_agent.py
-│   └── automation/         # TypeScript pipeline tests
-│       └── pipeline.test.ts
-├── .github/                # GitHub configuration
-│   ├── workflows/          # CI/CD pipelines
-│   │   └── ci.yml
-│   ├── ISSUE_TEMPLATE/     # Structured issue templates
-│   └── PULL_REQUEST_TEMPLATE/
-├── .env.example            # Environment variable template
-├── .gitignore
-├── requirements.txt        # Python dependencies
-├── LICENSE
-├── CONTRIBUTING.md         # How to contribute & workflow docs
-└── README.md               # This file
+│   │   ├── index.ts        # Pipeline-indgangspunkt og demo
+│   │   ├── pipeline.ts     # Workflow-orkestrering
+│   │   ├── connectors/
+│   │   │   └── api.ts      # REST API-connector med retry
+│   │   └── transforms/     # Datatransformationer
+│   │       ├── clean.ts    # Datarensning og deduplikering
+│   │       ├── filter.ts   # Filtrering (range-baseret)
+│   │       ├── map.ts      # Feltudvælgelse og berigelse
+│   │       ├── aggregate.ts # Gruppering og aggregering
+│   │       └── format.ts   # Markdown-formatering
+├── docs/
+│   ├── ARCHITECTURE.md     # Teknisk arkitekturdokumentation
+│   └── LEARNING.md         # Læringsjournal
+├── tests/                  # Testsuites
+│   ├── agent/              # Python-agenttests (43 tests)
+│   └── automation/         # TypeScript-pipelinetests (36 tests)
+├── demo.py                 # End-to-end integrationsdemo
+├── .github/workflows/
+│   └── ci.yml              # CI/CD-pipeline (lint, test, typecheck)
+├── requirements.txt        # Python-afhængigheder
+├── CONTRIBUTING.md         # Udviklingsworkflow
+└── LICENSE                 # MIT
 ```
 
-## Development Workflow
+## Udviklingsfaser
 
-This project follows a structured Git workflow:
+Projektet er udviklet iterativt i fire faser:
 
-1. **Issues** track all work — features, bugs, learning tasks
-2. **Feature branches** (`feature/agent-core`, `feature/automation-pipeline`)
-3. **Pull requests** with descriptions, test results, and learning reflections
-4. **CI/CD** validates every push (linting, tests, type checks)
-5. **Milestones** group issues into development phases
-6. **Releases** mark completed milestones
+| Fase | Indhold | Tests |
+|------|---------|-------|
+| **Fase 0** | Projektopsætning, CI/CD, dokumentationsstruktur | — |
+| **Fase 1** | Python AI-agentkerne: ReAct-loop, tool calling, retry-logik, dokumentanalyse, dataudtræk | 38 |
+| **Fase 2** | TypeScript automationspipeline: REST-connector med retry, 5 composable transforms, pipeline-orkestrering | 36 |
+| **Fase 3** | Integration: agent triggerer pipeline, pipeline føder agent, end-to-end demo | 79 total |
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow guide.
-
-## Development Phases
-
-- **Phase 0**: Project setup, CI/CD, documentation structure
-- **Phase 1**: Python AI Agent core (agent loop + 2 tools)
-- **Phase 2**: TypeScript automation pipeline (1 workflow)
-- **Phase 3**: Integration (agent triggers pipeline, pipeline feeds agent)
-- **Phase 4**: Tests, documentation polish, v1.0 release
-
-## Tech Stack
+## Tech-stack
 
 **Agent (Python)**
-- [Anthropic Python SDK](https://github.com/anthropics/anthropic-sdk-python) — Claude API with tool use
-- [python-dotenv](https://github.com/theskumar/python-dotenv) — Environment management
-- [pytest](https://docs.pytest.org/) — Testing
+- [Anthropic Python SDK](https://github.com/anthropics/anthropic-sdk-python) — Claude API med tool use
+- [python-dotenv](https://github.com/theskumar/python-dotenv) — Miljøvariabler
+- [pytest](https://docs.pytest.org/) — Test
 
-**Automation (TypeScript)**
-- [TypeScript](https://www.typescriptlang.org/) — Type-safe automation
-- [tsx](https://github.com/privatenumber/tsx) — TypeScript execution
-- [vitest](https://vitest.dev/) — Fast testing
-- [zod](https://zod.dev/) — Runtime validation
+**Automationspipeline (TypeScript)**
+- [TypeScript](https://www.typescriptlang.org/) — Typesikker automatisering
+- [tsx](https://github.com/privatenumber/tsx) — TypeScript-eksekvering
+- [vitest](https://vitest.dev/) — Hurtig test
+- [zod](https://zod.dev/) — Runtime-validering
 
-## License
+## Licens
 
-MIT — see [LICENSE](LICENSE) for details.
+MIT — se [LICENSE](LICENSE) for detaljer.
 
 ---
 
-Built by [Simon Mathiasen](https://github.com/SMat777) as a learning project exploring AI agent architecture and automation workflows.
+Bygget af [Simon Mathiasen](https://github.com/SMat777) som portfolioprojekt der demonstrerer AI-agentarkitektur og workflow-automatisering.
