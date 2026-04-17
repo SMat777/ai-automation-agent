@@ -20,6 +20,3 @@ A clear description of the feature.
 
 Any implementation details, design decisions, or constraints.
 
-## Learning Goals
-
-What will I learn or practice by implementing this?

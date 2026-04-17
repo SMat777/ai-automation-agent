@@ -2,28 +2,27 @@
 
 Brief description of what this PR does and why.
 
+## Approach
+
+Brief technical rationale for the chosen solution.
+
 ## Changes
 
-- Change 1
-- Change 2
+| File | Change |
+|------|--------|
+| `path` | what and why |
 
 ## Related Issue
 
 Closes #
 
-## Test Results
+## Test
 
-```
-paste test output here
-```
-
-## Learning Reflection
-
-What was new or challenging? What did I learn?
+- [ ] Existing tests pass
+- [ ] New tests added for new behavior
 
 ## Checklist
 
 - [ ] Code follows project conventions
-- [ ] Tests added/updated
 - [ ] Documentation updated if needed
 - [ ] CI passes
