@@ -1,3 +1,14 @@
+FROM node:20-slim AS build
+
+WORKDIR /app
+
+COPY package.json package-lock.json* ./
+RUN npm ci
+
+COPY src/ src/
+COPY tsconfig.json .
+RUN npx tsc
+
 FROM node:20-slim
 
 WORKDIR /app
@@ -5,7 +16,6 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci --omit=dev
 
-COPY src/ src/
-COPY tsconfig.json .
+COPY --from=build /app/dist/ dist/
 
-CMD ["npx", "tsx", "src/index.ts"]
+CMD ["node", "dist/index.js"]
