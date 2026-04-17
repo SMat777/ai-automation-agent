@@ -65,7 +65,6 @@ gh pr create --title "feat: add document analysis tool" --body "..."
 - Summary of changes
 - Link to related issue(s)
 - Test results (screenshot or output)
-- Learning reflection (what was new/challenging)
 
 ### 6. CI Must Pass
 
@@ -99,7 +98,6 @@ After CI passes and PR is reviewed, merge via GitHub.
 | `feature` | New functionality |
 | `bug` | Something broken |
 | `docs` | Documentation |
-| `learning` | Learning task / exploration |
 | `phase-0` to `phase-4` | Development phase |
 | `python` | Python agent work |
 | `typescript` | TypeScript automation work |
