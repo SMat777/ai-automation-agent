@@ -8,47 +8,83 @@
 </head>
 <body>
   <div class="app">
-    <header>
-      <div class="logo">
-        <span class="logo-icon">⚡</span>
-        <h1>AI Automation Agent</h1>
-      </div>
-      <p class="subtitle">Document analysis, data extraction, and automation pipelines</p>
+
+    <!-- Hero -->
+    <header class="hero">
+      <div class="hero-badge">Open Source Tool</div>
+      <h1>AI Automation Agent</h1>
+      <p class="hero-sub">Analyze documents, extract structured data, summarize content, and run automated data pipelines — powered by Python, TypeScript, and Claude AI.</p>
       <div id="status-bar" class="status-bar"></div>
     </header>
 
-    <nav class="tool-nav">
+    <!-- Quick demo -->
+    <section class="quick-demo">
+      <h2>Try it — pick a demo</h2>
+      <div class="demo-cards">
+        <button class="demo-card" onclick="loadDemo('analyze-job')">
+          <span class="demo-icon">🔍</span>
+          <strong>Analyze a job posting</strong>
+          <span class="demo-desc">Extract entities, structure, and key points from a real job ad</span>
+        </button>
+        <button class="demo-card" onclick="loadDemo('extract-invoice')">
+          <span class="demo-icon">📋</span>
+          <strong>Extract invoice data</strong>
+          <span class="demo-desc">Pull structured fields from an unstructured invoice</span>
+        </button>
+        <button class="demo-card" onclick="loadDemo('summarize-report')">
+          <span class="demo-icon">✏️</span>
+          <strong>Summarize a report</strong>
+          <span class="demo-desc">Condense a lengthy business report into key takeaways</span>
+        </button>
+        <button class="demo-card" onclick="loadDemo('pipeline-github')">
+          <span class="demo-icon">🔄</span>
+          <strong>Run GitHub analysis</strong>
+          <span class="demo-desc">Fetch live repos, aggregate by language, render results</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Tool nav -->
+    <nav class="tool-nav" id="tool-nav">
       <button class="tool-tab active" data-tool="analyze">
-        <span class="tab-icon">🔍</span>
-        Analyze
+        <span class="tab-icon">🔍</span> Analyze
       </button>
       <button class="tool-tab" data-tool="extract">
-        <span class="tab-icon">📋</span>
-        Extract
+        <span class="tab-icon">📋</span> Extract
       </button>
       <button class="tool-tab" data-tool="summarize">
-        <span class="tab-icon">✏️</span>
-        Summarize
+        <span class="tab-icon">✏️</span> Summarize
       </button>
       <button class="tool-tab" data-tool="pipeline">
-        <span class="tab-icon">🔄</span>
-        Pipeline
+        <span class="tab-icon">🔄</span> Pipeline
       </button>
     </nav>
 
     <main>
-      <!-- Analyze -->
+
+      <!-- ── Analyze ── -->
       <section id="panel-analyze" class="tool-panel active">
         <div class="panel-header">
-          <h2>Document Analysis</h2>
-          <p>Detect document type, extract entities, key points, and statistics</p>
+          <div>
+            <h2>Document Analysis</h2>
+            <p>Detects document type, extracts emails, dates, URLs, organizations, heading structure, and key points. Works on any text — emails, reports, markdown, tables.</p>
+          </div>
+          <div class="example-picker">
+            <label>Load example:</label>
+            <select onchange="loadExample('analyze', this.value)">
+              <option value="">Choose...</option>
+              <option value="job-posting">Job posting</option>
+              <option value="email">Business email</option>
+              <option value="report">Technical report</option>
+            </select>
+          </div>
         </div>
         <div class="input-group">
           <label for="analyze-text">Document text</label>
-          <textarea id="analyze-text" rows="8" placeholder="Paste a document, email, report, or any text to analyze..."></textarea>
+          <textarea id="analyze-text" rows="10" placeholder="Paste any document here..."></textarea>
         </div>
         <div class="input-row">
-          <div class="input-group">
+          <div class="input-group compact">
             <label for="analyze-focus">Focus area</label>
             <select id="analyze-focus">
               <option value="general">General</option>
@@ -57,103 +93,191 @@
               <option value="organizational">Organizational</option>
             </select>
           </div>
-          <button class="btn-run" onclick="runAnalyze()">Run Analysis</button>
+          <button class="btn-run" id="btn-analyze" onclick="runAnalyze()">
+            <span class="btn-label">Run Analysis</span>
+          </button>
         </div>
       </section>
 
-      <!-- Extract -->
+      <!-- ── Extract ── -->
       <section id="panel-extract" class="tool-panel">
         <div class="panel-header">
-          <h2>Data Extraction</h2>
-          <p>Extract structured fields from text using key-value, table, or list strategies</p>
+          <div>
+            <h2>Data Extraction</h2>
+            <p>Pulls structured key-value pairs from unstructured text. Supports three strategies: key-value parsing, markdown table extraction, and list parsing. Auto mode tries all three.</p>
+          </div>
+          <div class="example-picker">
+            <label>Load example:</label>
+            <select onchange="loadExample('extract', this.value)">
+              <option value="">Choose...</option>
+              <option value="invoice">Invoice</option>
+              <option value="contact">Contact card</option>
+              <option value="table">Markdown table</option>
+            </select>
+          </div>
         </div>
         <div class="input-group">
           <label for="extract-text">Source text</label>
-          <textarea id="extract-text" rows="8" placeholder="Company: Acme Corp&#10;Role: Software Engineer&#10;Location: Copenhagen&#10;Start Date: 2026-08-01"></textarea>
+          <textarea id="extract-text" rows="10" placeholder="Paste text containing data to extract..."></textarea>
         </div>
         <div class="input-row">
           <div class="input-group">
             <label for="extract-fields">Fields to extract <span class="hint">(comma-separated)</span></label>
-            <input type="text" id="extract-fields" placeholder="Company, Role, Location, Start Date">
+            <input type="text" id="extract-fields" placeholder="e.g. Company, Amount, Date">
           </div>
-          <div class="input-group">
+          <div class="input-group compact">
             <label for="extract-strategy">Strategy</label>
             <select id="extract-strategy">
-              <option value="auto">Auto</option>
+              <option value="auto">Auto (recommended)</option>
               <option value="key_value">Key-Value</option>
               <option value="table">Table</option>
               <option value="list">List</option>
             </select>
           </div>
-          <button class="btn-run" onclick="runExtract()">Extract Data</button>
+          <button class="btn-run" id="btn-extract" onclick="runExtract()">
+            <span class="btn-label">Extract Data</span>
+          </button>
         </div>
       </section>
 
-      <!-- Summarize -->
+      <!-- ── Summarize ── -->
       <section id="panel-summarize" class="tool-panel">
         <div class="panel-header">
-          <h2>Text Summarization</h2>
-          <p>Condense text into key takeaways — AI-powered or extractive</p>
+          <div>
+            <h2>Text Summarization</h2>
+            <p>Condenses long text into key takeaways. Uses Claude AI when an API key is configured, otherwise falls back to extractive summarization — both are fully functional.</p>
+          </div>
+          <div class="example-picker">
+            <label>Load example:</label>
+            <select onchange="loadExample('summarize', this.value)">
+              <option value="">Choose...</option>
+              <option value="business">Business report</option>
+              <option value="technical">Technical documentation</option>
+              <option value="article">News article</option>
+            </select>
+          </div>
         </div>
         <div class="input-group">
           <label for="summarize-text">Text to summarize</label>
-          <textarea id="summarize-text" rows="8" placeholder="Paste a long document, article, or report to summarize..."></textarea>
+          <textarea id="summarize-text" rows="10" placeholder="Paste a long document to summarize..."></textarea>
         </div>
         <div class="input-row">
-          <div class="input-group">
+          <div class="input-group compact">
             <label for="summarize-format">Format</label>
             <select id="summarize-format">
               <option value="bullets">Bullet points</option>
               <option value="paragraph">Paragraph</option>
             </select>
           </div>
-          <div class="input-group">
+          <div class="input-group compact">
             <label for="summarize-points">Max points</label>
             <input type="number" id="summarize-points" value="5" min="1" max="20">
           </div>
-          <button class="btn-run" onclick="runSummarize()">Summarize</button>
+          <button class="btn-run" id="btn-summarize" onclick="runSummarize()">
+            <span class="btn-label">Summarize</span>
+          </button>
         </div>
       </section>
 
-      <!-- Pipeline -->
+      <!-- ── Pipeline ── -->
       <section id="panel-pipeline" class="tool-panel">
         <div class="panel-header">
-          <h2>Data Pipeline</h2>
-          <p>Run automated data workflows — fetch, transform, aggregate, and format</p>
-        </div>
-        <div class="input-row">
-          <div class="input-group">
-            <label for="pipeline-select">Pipeline</label>
-            <select id="pipeline-select">
-              <option value="posts">📝 Post Analysis — User activity from JSONPlaceholder</option>
-              <option value="github">🐙 GitHub Repos — Repository analysis for SMat777</option>
-            </select>
-          </div>
-          <button class="btn-run" onclick="runPipeline()">Run Pipeline</button>
-        </div>
-        <div class="pipeline-info">
-          <div class="info-card">
-            <h4>How it works</h4>
-            <p>The pipeline runs a TypeScript workflow: <strong>Fetch → Clean → Filter → Aggregate → Format</strong>. Data is fetched from a real API, transformed through composable steps, and returned as a formatted report.</p>
+          <div>
+            <h2>Data Pipeline</h2>
+            <p>Runs a full TypeScript automation workflow: Fetch data from a live API → Clean → Filter → Aggregate → Format. Each step is composable and type-safe via Zod validation.</p>
           </div>
         </div>
+        <div class="pipeline-cards">
+          <button class="pipeline-card" id="pipe-posts" onclick="selectPipeline('posts')">
+            <span class="pipe-icon">📝</span>
+            <div>
+              <strong>Post Analysis</strong>
+              <span>Fetch user posts from JSONPlaceholder, compute word counts, aggregate by user</span>
+            </div>
+          </button>
+          <button class="pipeline-card selected" id="pipe-github" onclick="selectPipeline('github')">
+            <span class="pipe-icon">🐙</span>
+            <div>
+              <strong>GitHub Repos</strong>
+              <span>Fetch real repos from GitHub API, group by language, count stars</span>
+            </div>
+          </button>
+        </div>
+        <div class="pipeline-steps">
+          <div class="step-viz">
+            <div class="step-node">Fetch</div>
+            <div class="step-arrow">→</div>
+            <div class="step-node">Clean</div>
+            <div class="step-arrow">→</div>
+            <div class="step-node">Filter</div>
+            <div class="step-arrow">→</div>
+            <div class="step-node">Aggregate</div>
+            <div class="step-arrow">→</div>
+            <div class="step-node">Format</div>
+          </div>
+        </div>
+        <button class="btn-run btn-run-wide" id="btn-pipeline" onclick="runPipeline()">
+          <span class="btn-label">Run Pipeline</span>
+        </button>
       </section>
 
-      <!-- Result area -->
+      <!-- ── Loading overlay ── -->
+      <div id="loading-overlay" class="loading-overlay hidden">
+        <div class="loading-content">
+          <div class="loading-spinner"></div>
+          <p id="loading-message">Processing...</p>
+        </div>
+      </div>
+
+      <!-- ── Result area ── -->
       <div id="result-area" class="result-area hidden">
         <div class="result-header">
-          <h3>Result</h3>
-          <div class="result-meta" id="result-meta"></div>
+          <div>
+            <h3 id="result-title">Result</h3>
+            <p id="result-subtitle" class="result-subtitle"></p>
+          </div>
+          <div class="result-badges">
+            <span class="result-time" id="result-time"></span>
+          </div>
         </div>
         <div id="result-content" class="result-content"></div>
       </div>
+
     </main>
 
+    <!-- How it works -->
+    <section class="how-it-works">
+      <h2>How it works</h2>
+      <div class="architecture-cards">
+        <div class="arch-card">
+          <div class="arch-icon">🐍</div>
+          <h4>Python Agent</h4>
+          <p>ReAct decision loop with Claude API. Reasons about tasks, selects tools, synthesizes results.</p>
+        </div>
+        <div class="arch-card">
+          <div class="arch-icon">📘</div>
+          <h4>TypeScript Pipeline</h4>
+          <p>Composable data transformations with Zod validation. Fetch, clean, filter, aggregate, format.</p>
+        </div>
+        <div class="arch-card">
+          <div class="arch-icon">⚡</div>
+          <h4>FastAPI Server</h4>
+          <p>REST API with Pydantic validation. Serves the web UI and exposes all tools as endpoints.</p>
+        </div>
+        <div class="arch-card">
+          <div class="arch-icon">🔗</div>
+          <h4>Integration</h4>
+          <p>Agent triggers pipelines at runtime. Pipeline results feed back for AI analysis and reporting.</p>
+        </div>
+      </div>
+    </section>
+
     <footer>
-      <p>Built with Python, TypeScript, FastAPI, and Claude API — <a href="https://github.com/SMat777/ai-automation-agent" target="_blank">View on GitHub</a></p>
+      <p>Built by <a href="https://github.com/SMat777" target="_blank">Simon Mathiasen</a> · <a href="https://github.com/SMat777/ai-automation-agent" target="_blank">View source on GitHub</a></p>
     </footer>
   </div>
 
+  <script src="/static/examples.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>
