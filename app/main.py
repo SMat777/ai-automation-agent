@@ -1,0 +1,54 @@
+"""FastAPI application entry point.
+
+Exposes the AI agent tools as a REST API and serves the web frontend.
+Routers live in app/routers/; business logic in app/services/.
+"""
+
+from __future__ import annotations
+
+from dotenv import load_dotenv
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+
+from app.routers import analyze, chat, extract, health, pipeline, process, summarize
+
+load_dotenv()
+
+app = FastAPI(
+    title="AI Automation Agent",
+    description="AI-powered document analysis, data extraction, and automation pipelines",
+    version="0.4.0",
+)
+
+# CORS is wide open for the current phase; ADR 004 / Fase 2 will tighten this.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# ── API routes ───────────────────────────────────────────────────────────────
+
+API_PREFIX = "/api"
+
+app.include_router(health.router, prefix=API_PREFIX)
+app.include_router(analyze.router, prefix=API_PREFIX)
+app.include_router(extract.router, prefix=API_PREFIX)
+app.include_router(summarize.router, prefix=API_PREFIX)
+app.include_router(process.router, prefix=API_PREFIX)
+app.include_router(pipeline.router, prefix=API_PREFIX)
+app.include_router(chat.router, prefix=API_PREFIX)
+
+
+# ── Frontend ─────────────────────────────────────────────────────────────────
+
+app.mount("/static", StaticFiles(directory="frontend"), name="static")
+
+
+@app.get("/", include_in_schema=False)
+def serve_frontend() -> FileResponse:
+    """Serve the SPA shell."""
+    return FileResponse("frontend/index.html")
