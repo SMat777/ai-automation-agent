@@ -103,6 +103,18 @@ document.addEventListener('keydown', (e) => {
 
 // ── Tab navigation ──────────────────────────────────────────────────────────
 
+function switchToTool(toolId) {
+  // Deactivate all tabs + panels
+  document.querySelectorAll('.tool-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tool-panel').forEach(p => p.classList.remove('active'));
+
+  // Activate the chosen tab + panel
+  const tab = document.querySelector(`.tool-tab[data-tool="${toolId}"]`);
+  const panel = document.getElementById(`panel-${toolId}`);
+  if (tab) tab.classList.add('active');
+  if (panel) panel.classList.add('active');
+}
+
 document.querySelectorAll('.tool-tab').forEach(tab => {
   tab.addEventListener('click', () => {
     switchToTool(tab.dataset.tool);
@@ -1091,3 +1103,36 @@ function esc(str) {
   div.textContent = str;
   return div.innerHTML;
 }
+
+// ── Expose selected functions to other scripts (sidebar.js) ─────────────────
+// Keep this as a small, explicit public API rather than leaking everything.
+window.switchToTool = switchToTool;
+window.setResultHeader = setResultHeader;
+window.showResult = showResult;
+window.showToast = showToast;
+window.renderAnalyze = renderAnalyze;
+window.renderExtract = renderExtract;
+window.renderSummarize = renderSummarize;
+window.renderProcess = renderProcess;
+window.renderPipeline = renderPipeline;
+
+// ── Auto-refresh the run history after every successful tool run ────────────
+// sidebar.js exposes window.runHistory.refresh(); we hook the five main
+// runners by wrapping them.
+(function wireRunHistoryRefresh() {
+  const runnerNames = [
+    'runAnalyze', 'runExtract', 'runSummarize', 'runProcess', 'runPipeline',
+  ];
+  runnerNames.forEach(name => {
+    const original = window[name];
+    if (typeof original !== 'function') return;
+    window[name] = async function (...args) {
+      const result = await original.apply(this, args);
+      if (window.runHistory?.refresh) {
+        // Small delay so the server has committed the new run before we query
+        setTimeout(() => window.runHistory.refresh(), 250);
+      }
+      return result;
+    };
+  });
+})();
