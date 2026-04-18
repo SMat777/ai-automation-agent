@@ -27,6 +27,7 @@ Each ADR follows a lightweight version of the [Nygard ADR format](https://cognit
 | [002](./002-learning-docs-outside-repo.md) | Personal learning notes live outside the repo | Accepted |
 | [003](./003-orm-and-migrations.md) | ORM and migrations: SQLAlchemy 2.0 + Alembic | Accepted |
 | [004](./004-frontend-as-product.md) | Frontend is the product, not a demo shell | Accepted |
+| [005](./005-explicit-run-logging.md) | Explicit run logging over implicit middleware | Accepted |
 
 ## Writing a new ADR
 
