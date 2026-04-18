@@ -124,7 +124,7 @@
   function renderRuns() {
     if (state.runs.length === 0) {
       renderEmpty();
-      els.total.textContent = '0 runs';
+      updateFooterStats();
       return;
     }
 
@@ -142,7 +142,40 @@
       });
     });
 
-    els.total.textContent = state.total === 1 ? '1 run' : `${state.total} runs`;
+    updateFooterStats();
+  }
+
+  // ── Footer summary line ────────────────────────────────────────────────
+  // Shows contextual info based on what the sidebar is currently filtered
+  // to. Examples:
+  //   "Last run: 2m ago · 1 error"   (unfiltered)
+  //   "1 error this week"            (filter=errors + recent)
+  //   "No runs today"                (filter=today + empty)
+  function updateFooterStats() {
+    if (state.total === 0) {
+      els.total.textContent = emptyFooterText();
+      return;
+    }
+
+    const parts = [];
+    const mostRecent = state.runs[0];
+    if (mostRecent) {
+      parts.push(`Last run: ${formatRelativeTime(mostRecent.created_at)}`);
+    }
+    const errorCount = state.runs.filter(r => r.status === 'error').length;
+    if (errorCount > 0) {
+      parts.push(`${errorCount} error${errorCount === 1 ? '' : 's'}`);
+    }
+    els.total.textContent = parts.join(' · ');
+  }
+
+  function emptyFooterText() {
+    switch (state.filter) {
+      case 'errors': return 'No errors';
+      case 'today':  return 'Nothing today';
+      case 'week':   return 'Nothing this week';
+      default:       return 'No runs yet';
+    }
   }
 
   function renderEmpty() {
@@ -462,6 +495,8 @@
       const newText = formatRelativeTime(run.created_at);
       if (timeEl.textContent !== newText) timeEl.textContent = newText;
     });
+    // Footer also shows "Last run: Xm ago" — re-render that too.
+    if (state.runs.length > 0) updateFooterStats();
   }
 
   function startTimestampTicker() {
