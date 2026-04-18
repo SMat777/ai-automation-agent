@@ -272,9 +272,21 @@
 
     // Render the output using the matching tool renderer (which replaces
     // #result-content), then splice the input card in at the top.
-    if (renderer && data) {
-      renderer(data);
-      prependInputCard(inputCard);
+    if (renderer) {
+      // Chat needs both sides of the conversation; merge before rendering.
+      const renderData = run.tool_name === 'chat'
+        ? { ...(run.input_json || {}), ...(data || {}) }
+        : data;
+
+      if (renderData) {
+        renderer(renderData);
+        prependInputCard(inputCard);
+      } else {
+        window.showResult?.(`
+          ${inputCard}
+          <p class="empty-state">No output recorded for this run.</p>
+        `);
+      }
     } else if (data) {
       window.showResult?.(`
         ${inputCard}

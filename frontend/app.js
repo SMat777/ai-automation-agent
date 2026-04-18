@@ -696,6 +696,40 @@ function renderProcessCompact(d) {
   `);
 }
 
+// ── Chat replay renderer ────────────────────────────────────────────────────
+// Shown when the user clicks a chat run in the history sidebar. The live
+// chat flow still streams into #chat-messages — this renders a read-only
+// transcript into the result panel instead so the original chat view is
+// not clobbered.
+
+function renderChat(d) {
+  const userMsg = d && d.message ? d.message : null;
+  const answer = d && d.answer ? d.answer : null;
+
+  if (!userMsg && !answer) {
+    showResult('<p class="empty-state">No chat content was recorded for this run.</p>');
+    return;
+  }
+
+  setResultHeader('Chat — replay', 'Read-only transcript of a previous conversation');
+
+  const userBlock = userMsg ? `
+    <div class="replay-chat-bubble user">
+      <div class="replay-chat-role">You</div>
+      <div class="replay-chat-text">${renderMarkdown(userMsg, { lineBreaks: true })}</div>
+    </div>
+  ` : '';
+
+  const agentBlock = answer ? `
+    <div class="replay-chat-bubble agent">
+      <div class="replay-chat-role">Agent</div>
+      <div class="replay-chat-text">${renderMarkdown(answer, { lineBreaks: true })}</div>
+    </div>
+  ` : '';
+
+  showResult(`<div class="replay-chat">${userBlock}${agentBlock}</div>`);
+}
+
 // ── Renderers ───────────────────────────────────────────────────────────────
 
 function renderAnalyze(d) {
@@ -1167,6 +1201,7 @@ window.renderExtract = renderExtract;
 window.renderSummarize = renderSummarize;
 window.renderProcess = renderProcess;
 window.renderPipeline = renderPipeline;
+window.renderChat = renderChat;
 
 // ── Auto-refresh the run history after every successful tool run ────────────
 // sidebar.js exposes window.runHistory.refresh(); we hook the five main
