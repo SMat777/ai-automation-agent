@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 from typing import Any
 
@@ -11,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+from sse_starlette.sse import EventSourceResponse
 
 from agent.tools.analyze import handle_analyze
 from agent.tools.extract import handle_extract
@@ -53,6 +55,10 @@ class SummarizeRequest(BaseModel):
     max_points: int = Field(5, ge=1, le=20, description="Max bullet points")
 
 
+class ChatRequest(BaseModel):
+    message: str = Field(..., min_length=1, description="User message for the agent")
+
+
 class ProcessRequest(BaseModel):
     text: str = Field(..., min_length=1, description="Document text to process")
     document_type: str = Field("auto", description="Document type hint: auto, invoice, contract, report, meeting_notes")
@@ -78,7 +84,7 @@ def health() -> dict:
     return {
         "status": "ok",
         "api_key_configured": api_key_set,
-        "available_tools": ["analyze", "extract", "summarize", "process", "pipeline"],
+        "available_tools": ["analyze", "extract", "summarize", "process", "pipeline", "chat"],
         "available_pipelines": list(AVAILABLE_PIPELINES.keys()),
     }
 
@@ -110,6 +116,166 @@ def summarize(req: SummarizeRequest) -> ToolResponse:
         api_key=api_key,
     )
     return ToolResponse(success=True, data=result)
+
+
+@app.post("/api/chat")
+async def chat(req: ChatRequest) -> EventSourceResponse:
+    """Chat with the AI agent. Streams responses via SSE.
+
+    Event types:
+        text: Incremental text chunk from the agent
+        tool_call: Agent called a tool (name + input)
+        tool_result: Tool execution result
+        done: Agent finished (includes full AgentResult metadata)
+        error: Something went wrong
+    """
+    import asyncio
+
+    api_key = os.getenv("ANTHROPIC_API_KEY")
+
+    if not api_key:
+        return EventSourceResponse(_demo_chat_stream(req.message))
+
+    async def stream_agent():
+        """Run agent in thread and stream events via SSE."""
+        from agent.agent import Agent
+
+        try:
+            agent = Agent(api_key=api_key)
+            stream = agent.run_stream(req.message, max_iterations=5)
+
+            loop = asyncio.get_event_loop()
+
+            def iterate_stream():
+                """Iterate the synchronous generator in a thread."""
+                chunks = []
+                for chunk in stream:
+                    chunks.append(chunk)
+                return chunks, stream.result
+
+            chunks, result = await loop.run_in_executor(None, iterate_stream)
+
+            # Send all text chunks
+            for chunk in chunks:
+                yield {"event": "text", "data": chunk}
+
+            # Send tool call info
+            if result:
+                for step in result.steps:
+                    if step.action == "tool_call":
+                        yield {
+                            "event": "tool_call",
+                            "data": json.dumps({
+                                "tool": step.tool_name,
+                                "input": step.tool_input,
+                                "result": step.tool_result,
+                                "duration_ms": step.duration_ms,
+                            }),
+                        }
+
+                yield {
+                    "event": "done",
+                    "data": json.dumps({
+                        "answer": result.answer,
+                        "iterations": result.iterations,
+                        "tool_calls": len(result.tool_calls),
+                        "input_tokens": result.total_input_tokens,
+                        "output_tokens": result.total_output_tokens,
+                        "duration_ms": result.total_duration_ms,
+                    }),
+                }
+
+        except Exception as e:
+            yield {"event": "error", "data": str(e)}
+
+    return EventSourceResponse(stream_agent())
+
+
+async def _demo_chat_stream(message: str):
+    """Demo mode — simulate agent responses without API key."""
+    import asyncio
+
+    lower = message.lower()
+
+    # Pick a contextual demo response
+    if any(kw in lower for kw in ["invoice", "faktura", "billing"]):
+        response = (
+            "I'll analyze that invoice for you. Let me use the document processing tools.\n\n"
+            "**Step 1: Analysis**\n"
+            "I detected this as an invoice document with key-value pairs and a table structure.\n\n"
+            "**Step 2: Extraction**\n"
+            "I extracted the following fields:\n"
+            "- **Invoice Date:** 2026-04-01\n"
+            "- **Total:** 303,000 DKK\n"
+            "- **From:** Nordic Data Solutions ApS\n\n"
+            "**Step 3: Validation**\n"
+            "✅ Total matches subtotal + VAT\n"
+            "ℹ️ Net 29 days payment window\n\n"
+            "The invoice looks valid and ready for ERP import."
+        )
+        tool_calls = [{"tool": "analyze_document", "input": {"text": "(invoice text)", "focus": "general"}, "result": {"document_type": "invoice"}, "duration_ms": 3}]
+    elif any(kw in lower for kw in ["analyze", "document", "report"]):
+        response = (
+            "I'd be happy to analyze that document. I'll use the analyze tool to detect its type, "
+            "extract entities, and identify key points.\n\n"
+            "The analyze tool examines:\n"
+            "- **Document type** — invoice, contract, email, report, etc.\n"
+            "- **Entities** — emails, dates, URLs, organizations\n"
+            "- **Structure** — heading hierarchy and sections\n"
+            "- **Key points** — most important paragraphs\n\n"
+            "Paste a document in the **Process** or **Analyze** tab and I'll show you what I find."
+        )
+        tool_calls = []
+    elif any(kw in lower for kw in ["help", "what can", "how", "hvad kan"]):
+        response = (
+            "I'm an AI agent that can help you process documents. Here's what I can do:\n\n"
+            "🔍 **Analyze** — Detect document types, extract entities and structure\n"
+            "📋 **Extract** — Pull structured data from invoices, contracts, tables\n"
+            "✏️ **Summarize** — Condense long text into key takeaways\n"
+            "⚡ **Process** — Run the full pipeline: analyze → extract → summarize → validate\n"
+            "🔄 **Pipeline** — Fetch and transform data from live APIs\n\n"
+            "I use a ReAct reasoning loop — I think about what tool to use, execute it, "
+            "observe the result, and decide what to do next. "
+            "Try the **Process** tab with an invoice to see all tools working together!"
+        )
+        tool_calls = []
+    else:
+        response = (
+            "I can help with that! As an AI automation agent, I work best when you give me "
+            "a document to process or a specific task.\n\n"
+            "Try asking me to:\n"
+            "- \"Analyze this invoice\" (paste text in the Process tab)\n"
+            "- \"What can you do?\"\n"
+            "- \"Summarize this report\"\n\n"
+            "Or click one of the **demo cards** above to see me in action."
+        )
+        tool_calls = []
+
+    # Stream response character by character with realistic timing
+    for char in response:
+        yield {"event": "text", "data": char}
+        if char in (".", "\n"):
+            await asyncio.sleep(0.02)
+        elif char == " ":
+            await asyncio.sleep(0.008)
+        else:
+            await asyncio.sleep(0.004)
+
+    for tc in tool_calls:
+        yield {"event": "tool_call", "data": json.dumps(tc)}
+
+    yield {
+        "event": "done",
+        "data": json.dumps({
+            "answer": response,
+            "iterations": 1,
+            "tool_calls": len(tool_calls),
+            "input_tokens": 0,
+            "output_tokens": len(response.split()),
+            "duration_ms": len(response) * 5,
+            "demo_mode": True,
+        }),
+    }
 
 
 @app.post("/api/process", response_model=ToolResponse)
