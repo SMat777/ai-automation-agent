@@ -1854,3 +1854,76 @@ body { overflow-x: hidden; }
 @media (max-width: 480px) {
   :root { --sidebar-width: 86vw; }
 }
+
+/* ── Replay input card (Fase 1.6a #1) ─────────────────────────────────────── */
+
+.replay-input-card {
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  margin-bottom: 1rem;
+  overflow: hidden;
+  transition: border-color var(--t);
+}
+
+.replay-input-card:hover { border-color: var(--border-focus); }
+
+.replay-input-card > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 0.7rem 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+  user-select: none;
+}
+
+.replay-input-card > summary::-webkit-details-marker { display: none; }
+
+.replay-input-label {
+  font-weight: 600;
+  color: var(--text-2);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  flex-shrink: 0;
+}
+
+.replay-input-preview {
+  color: var(--text-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.replay-input-meta {
+  color: var(--text-3);
+  font-style: italic;
+  font-size: 0.78rem;
+}
+
+.replay-input-caret {
+  color: var(--text-3);
+  font-size: 0.7rem;
+  transition: transform var(--t);
+}
+
+.replay-input-card[open] .replay-input-caret { transform: rotate(90deg); }
+
+.replay-input-json {
+  margin: 0;
+  padding: 0.85rem 0.9rem;
+  background: var(--bg-0);
+  border-top: 1px solid var(--border);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem;
+  color: var(--text-2);
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 240px;
+  overflow-y: auto;
+}

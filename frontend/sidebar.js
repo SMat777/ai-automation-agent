@@ -236,6 +236,9 @@
     const toolId = tabMap[run.tool_name] || 'analyze';
     window.switchToTool?.(toolId);
 
+    // Pre-fill the tool's input fields so the user sees what was run.
+    prefillToolInputs(run.tool_name, run.input_json);
+
     // Use the matching renderer from app.js if available
     const renderers = {
       analyze: window.renderAnalyze,
@@ -243,6 +246,7 @@
       summarize: window.renderSummarize,
       process: window.renderProcess,
       pipeline: window.renderPipeline,
+      chat: window.renderChat,
     };
     const renderer = renderers[run.tool_name];
     const data = run.output_json;
@@ -252,8 +256,12 @@
       `Run #${run.id} · ${new Date(run.created_at).toLocaleString()}`,
     );
 
+    // Build the shared "Input" card that precedes every replay.
+    const inputCard = buildInputCard(run);
+
     if (run.status === 'error') {
       window.showResult?.(`
+        ${inputCard}
         <div class="error-message">
           <span class="error-icon">⚠️</span>
           ${escHtml(run.error_message || 'Run failed without a message')}
@@ -262,18 +270,110 @@
       return;
     }
 
+    // Render the output using the matching tool renderer (which replaces
+    // #result-content), then splice the input card in at the top.
     if (renderer && data) {
       renderer(data);
+      prependInputCard(inputCard);
     } else if (data) {
-      // Fallback: pretty-print JSON for tools without a dedicated renderer.
-      window.showResult?.(
-        `<pre class="erp-json">${escHtml(JSON.stringify(data, null, 2))}</pre>`
-      );
+      window.showResult?.(`
+        ${inputCard}
+        <pre class="erp-json">${escHtml(JSON.stringify(data, null, 2))}</pre>
+      `);
     } else {
-      window.showResult?.(
-        '<p class="empty-state">No output recorded for this run.</p>'
-      );
+      window.showResult?.(`
+        ${inputCard}
+        <p class="empty-state">No output recorded for this run.</p>
+      `);
     }
+  }
+
+  // ── Input card (shown above the output on every replay) ────────────────
+
+  function buildInputCard(run) {
+    if (!run.input_json) {
+      return `
+        <div class="replay-input-card">
+          <div class="replay-input-header">
+            <span class="replay-input-label">Input</span>
+            <span class="replay-input-meta">not recorded</span>
+          </div>
+        </div>
+      `;
+    }
+
+    const pretty = JSON.stringify(run.input_json, null, 2);
+    const preview = summariseInput(run.tool_name, run.input_json);
+
+    return `
+      <details class="replay-input-card">
+        <summary>
+          <span class="replay-input-label">Input</span>
+          <span class="replay-input-preview">${escHtml(preview)}</span>
+          <span class="replay-input-caret" aria-hidden="true">▸</span>
+        </summary>
+        <pre class="replay-input-json">${escHtml(pretty)}</pre>
+      </details>
+    `;
+  }
+
+  function summariseInput(toolName, input) {
+    // One-line preview used as the collapsed summary text.
+    if (!input) return '(empty)';
+    if (toolName === 'chat' && input.message) return truncate(input.message, 90);
+    if (input.text) return truncate(input.text, 90);
+    if (input.task) return `task: ${truncate(input.task, 70)}`;
+    // Generic fallback: first key=value pair
+    const keys = Object.keys(input);
+    if (keys.length === 0) return '(empty)';
+    const k = keys[0];
+    return `${k}: ${truncate(String(input[k]), 70)}`;
+  }
+
+  function prependInputCard(inputCardHTML) {
+    const container = document.getElementById('result-content');
+    if (!container) return;
+    // Only add if the result renderer produced something — otherwise
+    // showResult already included the card.
+    const existing = container.querySelector('.replay-input-card');
+    if (existing) return;
+    container.insertAdjacentHTML('afterbegin', inputCardHTML);
+  }
+
+  // ── Pre-fill tool inputs (so the replayed state matches what was run) ──
+
+  function prefillToolInputs(toolName, input) {
+    if (!input) return;
+    try {
+      if (toolName === 'analyze' && input.text) {
+        setValue('analyze-text', input.text);
+        setValue('analyze-focus', input.focus);
+      } else if (toolName === 'extract' && input.text) {
+        setValue('extract-text', input.text);
+        if (Array.isArray(input.fields)) {
+          setValue('extract-fields', input.fields.join(', '));
+        }
+        setValue('extract-strategy', input.strategy);
+      } else if (toolName === 'summarize' && input.text) {
+        setValue('summarize-text', input.text);
+        setValue('summarize-format', input.format);
+        setValue('summarize-points', input.max_points);
+      } else if (toolName === 'process' && input.text) {
+        setValue('process-text', input.text);
+        setValue('process-type', input.document_type);
+      } else if (toolName === 'chat' && input.message) {
+        setValue('chat-input', input.message);
+      }
+    } catch (err) {
+      // Non-fatal — replay UI still works, just without pre-fill.
+      console.debug('Could not prefill inputs:', err);
+    }
+  }
+
+  function setValue(id, value) {
+    if (value === undefined || value === null) return;
+    const el = document.getElementById(id);
+    if (el) el.value = value;
   }
 
   // ── Filter chips ───────────────────────────────────────────────────────
@@ -384,6 +484,11 @@
 
   function toTitle(s) {
     return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+
+  function truncate(s, max) {
+    const str = String(s ?? '').replace(/\s+/g, ' ').trim();
+    return str.length > max ? str.slice(0, max - 1) + '…' : str;
   }
 
   function escHtml(s) {
