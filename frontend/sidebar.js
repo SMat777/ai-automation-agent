@@ -447,6 +447,29 @@
     });
   }
 
+  // ── Live-update of relative timestamps ─────────────────────────────────
+  // Every 30 s, re-render the time on each card so "just now" doesn't stay
+  // "just now" forever. Updating only the span avoids touching the DOM
+  // structure, so click handlers and focus remain intact.
+
+  function tickTimestamps() {
+    els.body.querySelectorAll('.run-card').forEach(card => {
+      const id = Number(card.dataset.runId);
+      const run = state.runs.find(r => r.id === id);
+      if (!run) return;
+      const timeEl = card.querySelector('.run-card-time');
+      if (!timeEl) return;
+      const newText = formatRelativeTime(run.created_at);
+      if (timeEl.textContent !== newText) timeEl.textContent = newText;
+    });
+  }
+
+  function startTimestampTicker() {
+    // Initial tick immediately, then every 30 s.
+    tickTimestamps();
+    setInterval(tickTimestamps, 30_000);
+  }
+
   // ── Public API (exposed on window for app.js to call after runs) ───────
 
   window.runHistory = {
@@ -461,6 +484,7 @@
     wireRefresh();
     wireDrawer();
     fetchRuns();
+    startTimestampTicker();
   }
 
   if (document.readyState === 'loading') {
