@@ -2,6 +2,111 @@
 
 const EXAMPLES = {
 
+  process: {
+    'invoice': {
+      text: `INVOICE #INV-2026-0391
+
+From: Nordic Data Solutions ApS
+To: GreenField Manufacturing A/S
+
+Invoice Date: 2026-04-01
+Due Date: 2026-04-30
+Payment Terms: Net 30
+
+Description of services:
+AI-powered document processing system for automating invoice intake and ERP data entry.
+Project delivered in three phases over Q1 2026.
+
+| Service | Hours | Rate | Amount |
+|---------|-------|------|--------|
+| Solution Architecture | 24 | 1,500 DKK | 36,000 DKK |
+| AI Development | 120 | 1,200 DKK | 144,000 DKK |
+| Integration & Testing | 40 | 1,000 DKK | 40,000 DKK |
+| Project Management | 16 | 1,400 DKK | 22,400 DKK |
+
+Subtotal: 242,400 DKK
+VAT (25%): 60,600 DKK
+Total: 303,000 DKK
+
+Bank: Nordea
+Account: 2211-0098765432
+SWIFT: NDEADKKK
+Reference: INV-2026-0391
+
+Contact: billing@nordicdata.dk`,
+      document_type: 'invoice',
+    },
+
+    'contract': {
+      text: `SERVICE AGREEMENT
+
+Agreement Number: SA-2026-0174
+Effective Date: 2026-05-01
+Duration: 12 months (auto-renewal)
+
+PARTIES:
+- Provider: DataFlow Consulting A/S, CVR 31458902, Aarhus
+- Client: Meridian Logistics A/S, CVR 28193746, Copenhagen
+
+SCOPE OF SERVICES:
+DataFlow Consulting will provide ongoing AI automation services including:
+1. Maintenance of document processing pipelines
+2. Monthly optimization of extraction models
+3. 24/7 monitoring and incident response
+4. Quarterly business review and roadmap planning
+
+COMPENSATION:
+Monthly retainer: 85,000 DKK (ex. VAT)
+Additional development: 1,200 DKK/hour
+Payment terms: Net 15
+
+TERMINATION:
+Either party may terminate with 90 days written notice.
+Early termination fee: 3 months retainer.
+
+Governing Law: Danish law
+Dispute Resolution: Copenhagen Arbitration
+
+Signed: Erik Hansen, CEO DataFlow Consulting A/S
+Date: 2026-04-15
+Contact: legal@dataflow.dk`,
+      document_type: 'contract',
+    },
+
+    'meeting': {
+      text: `MEETING NOTES — AI Platform Sprint Review
+
+Date: 2026-04-14
+Time: 10:00-11:30
+Location: Conference Room B, Aarhus Office
+Attendees: Simon M. (Dev), Anna K. (Data), Lars P. (DevOps), Mette S. (PM)
+
+AGENDA:
+1. Sprint 12 demo and review
+2. Pipeline performance metrics
+3. Q2 roadmap discussion
+
+KEY DECISIONS:
+- Approved migration of document processing to Azure Container Apps
+- Agreed to add support for PDF input (not just plain text)
+- Budget approved for Claude API usage in production (est. 4,000 DKK/month)
+
+ACTION ITEMS:
+- Simon: Implement PDF text extraction using PyMuPDF — deadline 2026-04-21
+- Anna: Set up monitoring dashboard for pipeline throughput — deadline 2026-04-18
+- Lars: Configure auto-scaling for container instances — deadline 2026-04-25
+- Mette: Schedule customer demo for GreenField Manufacturing — deadline 2026-04-16
+
+METRICS:
+- Pipeline throughput: 340 documents/hour (up from 210)
+- Extraction accuracy: 94.2% (target: 95%)
+- Average processing time: 2.3 seconds per document
+
+Next Meeting: 2026-04-28, 10:00`,
+      document_type: 'meeting_notes',
+    },
+  },
+
   analyze: {
     'job-posting': {
       text: `AI & Automation Intern — Columbus
@@ -182,6 +287,7 @@ One notable trend is the growing adoption of large language models and automatio
 // ── Demo loaders ────────────────────────────────────────────────────────────
 
 const DEMO_MAP = {
+  'process-invoice':   { tool: 'process',   example: 'invoice' },
   'analyze-job':       { tool: 'analyze',   example: 'job-posting' },
   'extract-invoice':   { tool: 'extract',   example: 'invoice' },
   'summarize-report':  { tool: 'summarize', example: 'business' },
@@ -196,7 +302,10 @@ function loadDemo(demoId) {
   switchToTool(mapping.tool);
 
   // Load example and auto-run
-  if (mapping.tool === 'pipeline') {
+  if (mapping.tool === 'process') {
+    loadExample('process', mapping.example);
+    setTimeout(() => runProcess(), 400);
+  } else if (mapping.tool === 'pipeline') {
     selectPipeline(mapping.example === 'github' ? 'github' : 'posts');
     setTimeout(() => runPipeline(), 300);
   } else {
@@ -217,6 +326,10 @@ function loadExample(tool, exampleKey) {
   const ex = EXAMPLES[tool][exampleKey];
 
   switch (tool) {
+    case 'process':
+      document.getElementById('process-text').value = ex.text;
+      document.getElementById('process-type').value = ex.document_type || 'auto';
+      break;
     case 'analyze':
       document.getElementById('analyze-text').value = ex.text;
       document.getElementById('analyze-focus').value = ex.focus || 'general';
