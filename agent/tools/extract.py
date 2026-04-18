@@ -102,6 +102,16 @@ def _extract_key_value(text: str, fields: list[str]) -> dict[str, str | None]:
             pattern = rf"(?i)(?:^|\n)\s*{re.escape(alt_field)}\s*[:=]\s*(.+?)(?:\n|$)"
             match = re.search(pattern, text)
 
+        if not match:
+            # Try with optional parenthetical after field name: "VAT (25%): value"
+            pattern = rf"(?i)(?:^|\n)\s*{re.escape(f)}\s*\([^)]*\)\s*[:=]\s*(.+?)(?:\n|$)"
+            match = re.search(pattern, text)
+
+        if not match:
+            # Try with optional prefix words: "KEY DECISIONS:" matches "Decisions"
+            pattern = rf"(?i)(?:^|\n)\s*\w+\s+{re.escape(f)}\s*[:=]\s*(.+?)(?:\n|$)"
+            match = re.search(pattern, text)
+
         result[f] = match.group(1).strip() if match else None
 
     return result

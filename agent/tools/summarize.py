@@ -53,7 +53,7 @@ def handle_summarize(
     Returns:
         Dictionary with summary, format, method used, and metadata.
     """
-    sentences = [s.strip() for s in text.replace("\n", " ").split(".") if s.strip()]
+    sentences = _split_sentences(text)
     word_count = len(text.split())
 
     if api_key:
@@ -102,11 +102,95 @@ def _ai_summarize(text: str, format: str, max_points: int, api_key: str) -> str:
     return str(block)
 
 
+def _split_sentences(text: str) -> list[str]:
+    """Split text into meaningful sentences, handling structured documents."""
+    import re
+
+    # First split by double newlines (paragraphs) — each is a potential sentence
+    paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
+
+    sentences = []
+    for para in paragraphs:
+        # Skip table-like content
+        if "|" in para and para.count("|") > 2:
+            continue
+        # Skip very short lines (headers, labels)
+        lines = [ln.strip() for ln in para.split("\n") if ln.strip()]
+        for line in lines:
+            # Split on sentence-ending punctuation, but not on abbreviations
+            parts = re.split(r"(?<=[.!?])\s+(?=[A-Z])", line)
+            for part in parts:
+                cleaned = part.strip().rstrip(".")
+                if cleaned and len(cleaned.split()) >= 2:
+                    sentences.append(cleaned)
+
+    return sentences
+
+
 def _extractive_summarize(
     sentences: list[str], format: str, max_points: int
 ) -> str:
-    """Fallback: simple extractive summarization (no API needed)."""
+    """Extractive summarization — score sentences by importance signals."""
+    if not sentences:
+        return "No content to summarize."
+
+    scored: list[tuple[float, int, str]] = []
+    for i, s in enumerate(sentences):
+        score = _score_sentence(s, i, len(sentences))
+        scored.append((score, i, s))
+
+    # Sort by score descending, then pick top N
+    scored.sort(key=lambda x: x[0], reverse=True)
+    top = scored[:max_points]
+
+    # Re-sort by original position for coherent reading order
+    top.sort(key=lambda x: x[1])
+
     if format == "bullets":
-        points = sentences[:max_points]
-        return "\n".join(f"- {point}." for point in points)
-    return ". ".join(sentences[:3]) + "."
+        return "\n".join(f"- {s.strip().lstrip('- ')}." for _, _, s in top)
+    return ". ".join(s.strip().lstrip("- ") for _, _, s in top[:3]) + "."
+
+
+def _score_sentence(sentence: str, position: int, total: int) -> float:
+    """Score a sentence's importance using multiple heuristic signals."""
+    score = 0.0
+    lower = sentence.lower()
+    words = sentence.split()
+    word_count = len(words)
+
+    # Length bonus — medium-length sentences are more informative
+    if 8 <= word_count <= 30:
+        score += 1.0
+    elif word_count < 4:
+        score -= 2.0  # Skip very short fragments
+
+    # Position bonus — first sentences of document carry more weight
+    if position == 0:
+        score += 2.0
+    elif position < total * 0.2:
+        score += 1.0
+
+    # Keyword signals — sentences with key terms are important
+    importance_keywords = [
+        "total", "key", "important", "result", "conclusion", "summary",
+        "decision", "approved", "agreed", "deadline", "action", "revenue",
+        "cost", "budget", "objective", "scope", "deliverable", "milestone",
+    ]
+    score += sum(0.5 for kw in importance_keywords if kw in lower)
+
+    # Numeric data — sentences with numbers often carry facts
+    import re
+    numbers = re.findall(r"\d+[.,]?\d*", sentence)
+    if numbers:
+        score += 0.5 * min(len(numbers), 3)
+
+    # Penalize boilerplate
+    boilerplate = ["please", "regards", "sincerely", "dear", "hi ", "hello"]
+    if any(bp in lower for bp in boilerplate):
+        score -= 2.0
+
+    # Penalize table-like fragments (pipe characters, dashes-only)
+    if "|" in sentence or sentence.strip("-= ") == "":
+        score -= 3.0
+
+    return score

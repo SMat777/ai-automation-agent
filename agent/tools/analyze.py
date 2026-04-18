@@ -57,6 +57,18 @@ def _detect_type(text: str) -> str:
     """Detect the document type based on structural cues."""
     lower = text.lower()
 
+    # Contract / agreement — check first (most specific signals)
+    contract_signals = ["agreement", "contract", "parties", "termination", "governing law", "effective date"]
+    if sum(1 for kw in contract_signals if kw in lower) >= 2:
+        return "contract"
+    # Meeting notes
+    meeting_signals = ["meeting", "attendees", "agenda", "action items", "minutes", "decisions"]
+    if sum(1 for kw in meeting_signals if kw in lower) >= 2:
+        return "meeting_notes"
+    # Invoice — check before email since invoices often have From:/To: fields
+    invoice_signals = ["invoice", "subtotal", "vat", "due date", "payment terms"]
+    if sum(1 for kw in invoice_signals if kw in lower) >= 2:
+        return "invoice"
     if re.search(r"^(from|to|subject|date):", text, re.MULTILINE | re.IGNORECASE):
         return "email"
     if re.search(r"\|.*\|.*\|", text):
