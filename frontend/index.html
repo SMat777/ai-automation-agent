@@ -66,6 +66,9 @@
       <button class="tool-tab" data-tool="pipeline">
         <span class="tab-icon">🔄</span> Pipeline
       </button>
+      <button class="tool-tab" data-tool="chat">
+        <span class="tab-icon">💬</span> Chat
+      </button>
     </nav>
 
     <main>
@@ -314,6 +317,39 @@
           <span class="btn-label">Run Pipeline</span>
           <kbd class="kbd-hint">⌘↵</kbd>
         </button>
+      </section>
+
+      <!-- ── Chat ── -->
+      <section id="panel-chat" class="tool-panel">
+        <div class="panel-header">
+          <div>
+            <h2>Agent Chat</h2>
+            <p>Talk to the AI agent in natural language. It reasons about your request, selects tools, and builds a response — showing its thinking process in real time.</p>
+          </div>
+          <div id="chat-mode-badge" class="chat-mode-badge"></div>
+        </div>
+
+        <div class="chat-container" id="chat-container">
+          <div class="chat-messages" id="chat-messages" role="log" aria-live="polite">
+            <div class="chat-welcome">
+              <span class="chat-welcome-icon">🤖</span>
+              <p>Hi! I'm an AI automation agent. Ask me to analyze a document, extract data, or explain what I can do.</p>
+              <div class="chat-suggestions">
+                <button class="chat-suggestion" onclick="sendChatSuggestion('What can you do?')">What can you do?</button>
+                <button class="chat-suggestion" onclick="sendChatSuggestion('Analyze an invoice for me')">Analyze an invoice</button>
+                <button class="chat-suggestion" onclick="sendChatSuggestion('How does the document processing pipeline work?')">How does the pipeline work?</button>
+              </div>
+            </div>
+          </div>
+
+          <form class="chat-input-area" onsubmit="handleChatSubmit(event)">
+            <label for="chat-input" class="sr-only">Message</label>
+            <textarea id="chat-input" class="chat-input" rows="1" placeholder="Ask the agent anything..." aria-label="Chat message"></textarea>
+            <button type="submit" class="chat-send-btn" id="chat-send-btn" aria-label="Send message">
+              <span class="send-icon">↑</span>
+            </button>
+          </form>
+        </div>
       </section>
 
       <!-- ── Loading overlay ── -->
