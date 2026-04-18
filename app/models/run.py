@@ -17,6 +17,7 @@ from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+from app.models._helpers import utcnow
 
 if TYPE_CHECKING:
     from app.models.user import User
@@ -62,7 +63,7 @@ class Run(Base):
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
-        default=datetime.utcnow,
+        default=utcnow,
         nullable=False,
         index=True,  # the Runs list is always sorted by created_at DESC
     )
