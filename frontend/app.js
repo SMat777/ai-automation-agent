@@ -379,6 +379,13 @@ function resetProcessSteps() {
 }
 
 function renderProcess(d) {
+  // Guard: old runs or failed runs may not have all four steps.
+  // Fall back to a compact summary so replay doesn't crash.
+  if (!d || !Array.isArray(d.steps) || d.steps.length < 4) {
+    renderProcessCompact(d);
+    return;
+  }
+
   const analysis = d.steps[0].data;
   const extraction = d.steps[1].data;
   const summary = d.steps[2].data;
@@ -642,6 +649,51 @@ async function runPipeline() {
   }, 'pipeline');
 
   if (data) renderPipeline(data.data);
+}
+
+// ── Process compact renderer ────────────────────────────────────────────────
+// Fallback used when a replay doesn't have the full 4-step pipeline payload.
+// Shows whatever top-level summary fields we do have, so the UI degrades
+// gracefully rather than throwing.
+
+function renderProcessCompact(d) {
+  if (!d) {
+    showResult('<p class="empty-state">No output was recorded for this run.</p>');
+    return;
+  }
+
+  const overviewRows = [];
+  if (d.document_type) overviewRows.push(['Document Type', esc(d.document_type.replace(/_/g, ' '))]);
+  if (d.fields_extracted) overviewRows.push(['Fields Extracted', esc(d.fields_extracted)]);
+  if (typeof d.entities_found === 'number') overviewRows.push(['Entities Found', d.entities_found]);
+  if (typeof d.confidence === 'number') overviewRows.push(['Confidence', `${Math.round(d.confidence * 100)}%`]);
+  if (typeof d.total_duration_ms === 'number') overviewRows.push(['Total Duration', `${d.total_duration_ms}ms`]);
+  if (typeof d.validation_errors === 'number') overviewRows.push(['Validation Errors', d.validation_errors]);
+
+  const overview = overviewRows.length > 0
+    ? `<div class="result-card"><h4>Run Summary</h4>${
+        overviewRows.map(([k, v]) => statRow(k, v)).join('')
+      }</div>`
+    : '';
+
+  const erpBlock = d.erp_output
+    ? `<div class="result-card full-width">
+         <h4>ERP-Ready Output</h4>
+         <pre class="erp-json">${esc(JSON.stringify(d.erp_output, null, 2))}</pre>
+       </div>`
+    : '';
+
+  setResultHeader(
+    'Document Processing',
+    'Compact replay — full step-by-step data was not recorded for this run.',
+  );
+
+  showResult(`
+    <div class="result-grid">
+      ${overview}
+      ${erpBlock}
+    </div>
+  `);
 }
 
 // ── Renderers ───────────────────────────────────────────────────────────────
