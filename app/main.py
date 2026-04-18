@@ -12,7 +12,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.routers import analyze, chat, extract, health, pipeline, process, summarize
+from app.routers import (
+    analyze,
+    chat,
+    extract,
+    health,
+    pipeline,
+    process,
+    runs,
+    summarize,
+)
 
 load_dotenv()
 
@@ -41,6 +50,7 @@ app.include_router(summarize.router, prefix=API_PREFIX)
 app.include_router(process.router, prefix=API_PREFIX)
 app.include_router(pipeline.router, prefix=API_PREFIX)
 app.include_router(chat.router, prefix=API_PREFIX)
+app.include_router(runs.router, prefix=API_PREFIX)
 
 
 # ── Frontend ─────────────────────────────────────────────────────────────────
