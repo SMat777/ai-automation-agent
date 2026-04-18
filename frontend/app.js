@@ -76,6 +76,11 @@ document.addEventListener('keydown', (e) => {
     if (!activePanel) return;
 
     const toolId = activePanel.id.replace('panel-', '');
+    if (toolId === 'chat') {
+      handleChatSubmit(e);
+      return;
+    }
+
     const runners = {
       process: runProcess,
       analyze: runAnalyze,
@@ -878,6 +883,7 @@ async function sendChatMessage(message) {
     let buffer = '';
     let fullText = '';
     let toolCalls = [];
+    let currentEvent = null;
 
     textEl.textContent = '';
 
@@ -891,13 +897,13 @@ async function sendChatMessage(message) {
 
       for (const line of lines) {
         if (line.startsWith('event: ')) {
-          var currentEvent = line.slice(7).trim();
+          currentEvent = line.slice(7).trim();
         } else if (line.startsWith('data: ') && currentEvent) {
           const data = line.slice(6);
 
           if (currentEvent === 'text') {
             fullText += data;
-            textEl.innerHTML = renderChatMarkdown(fullText);
+            textEl.innerHTML = renderMarkdown(fullText, { lineBreaks: true });
             scrollChatToBottom();
           } else if (currentEvent === 'tool_call') {
             try {
@@ -925,7 +931,7 @@ async function sendChatMessage(message) {
 
     // Final render with markdown
     if (fullText) {
-      textEl.innerHTML = renderChatMarkdown(fullText);
+      textEl.innerHTML = renderMarkdown(fullText, { lineBreaks: true });
     }
 
   } catch (err) {
@@ -947,7 +953,7 @@ function appendChatMessage(role, text) {
   } else {
     bubble.innerHTML = `
       <div class="chat-agent-header"><span class="agent-avatar">🤖</span> Agent</div>
-      <div class="chat-text">${text ? renderChatMarkdown(text) : ''}</div>
+      <div class="chat-text">${text ? renderMarkdown(text, { lineBreaks: true }) : ''}</div>
       <div class="chat-meta"></div>
     `;
   }
@@ -966,29 +972,22 @@ function appendToolCard(bubble, tc) {
       <strong>${esc(tc.tool)}</strong>
       ${tc.duration_ms ? `<span class="tool-card-time">${tc.duration_ms}ms</span>` : ''}
     </div>
-    ${tc.result ? `<div class="tool-card-result">${esc(JSON.stringify(tc.result, null, 2).slice(0, 200))}${JSON.stringify(tc.result).length > 200 ? '...' : ''}</div>` : ''}
+    ${tc.result ? (() => { const s = JSON.stringify(tc.result, null, 2); return `<div class="tool-card-result">${esc(s.slice(0, 200))}${s.length > 200 ? '…' : ''}</div>`; })() : ''}
   `;
 
   const textEl = bubble.querySelector('.chat-text');
   bubble.insertBefore(card, textEl.nextSibling);
 }
 
-function renderChatMarkdown(text) {
-  let html = esc(text);
-  // Bold
-  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  // Italic
-  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-  // Inline code
-  html = html.replace(/`(.+?)`/g, '<code class="inline-code">$1</code>');
-  // Line breaks
-  html = html.replace(/\n/g, '<br>');
-  return html;
-}
-
+let scrollPending = false;
 function scrollChatToBottom() {
-  const container = document.getElementById('chat-messages');
-  container.scrollTop = container.scrollHeight;
+  if (scrollPending) return;
+  scrollPending = true;
+  requestAnimationFrame(() => {
+    const container = document.getElementById('chat-messages');
+    container.scrollTop = container.scrollHeight;
+    scrollPending = false;
+  });
 }
 
 // Auto-resize chat input
@@ -1015,9 +1014,11 @@ function updateChatBadge(apiKeyConfigured) {
   if (apiKeyConfigured) {
     badge.textContent = '🟢 Live Agent';
     badge.className = 'chat-mode-badge live';
+    badge.title = 'Connected to Claude AI — full agent capabilities';
   } else {
     badge.textContent = '🟡 Demo Mode';
     badge.className = 'chat-mode-badge demo';
+    badge.title = 'Pre-written responses — connect an API key for the live AI agent';
   }
 }
 
@@ -1055,13 +1056,13 @@ function formatSummary(text) {
   if (text.includes('- ')) {
     const items = text.split('\n').filter(l => l.trim().startsWith('- '));
     return `<ul class="summary-list">${items.map(i =>
-      `<li>${renderInlineMarkdown(i.replace(/^- /, ''))}</li>`
+      `<li>${renderMarkdown(i.replace(/^- /, ''))}</li>`
     ).join('')}</ul>`;
   }
-  return `<p class="summary-paragraph">${renderInlineMarkdown(text)}</p>`;
+  return `<p class="summary-paragraph">${renderMarkdown(text)}</p>`;
 }
 
-function renderInlineMarkdown(text) {
+function renderMarkdown(text, { lineBreaks = false } = {}) {
   let html = esc(text);
   // Bold: **text** or __text__
   html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
@@ -1070,8 +1071,10 @@ function renderInlineMarkdown(text) {
   html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
   // Inline code: `text`
   html = html.replace(/`(.+?)`/g, '<code class="inline-code">$1</code>');
-  // Links: [text](url)
-  html = html.replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  // Links: [text](url) — only allow http/https (block javascript: XSS)
+  html = html.replace(/\[(.+?)\]\((https?:\/\/.+?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+  // Line breaks
+  if (lineBreaks) html = html.replace(/\n/g, '<br>');
   return html;
 }
 
@@ -1079,6 +1082,7 @@ function flash(elementId) {
   const el = document.getElementById(elementId);
   el.classList.add('flash');
   el.focus();
+  showToast('Please fill in the required field', 'error');
   setTimeout(() => el.classList.remove('flash'), 600);
 }
 

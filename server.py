@@ -200,20 +200,19 @@ async def _demo_chat_stream(message: str):
     # Pick a contextual demo response
     if any(kw in lower for kw in ["invoice", "faktura", "billing"]):
         response = (
-            "I'll analyze that invoice for you. Let me use the document processing tools.\n\n"
-            "**Step 1: Analysis**\n"
-            "I detected this as an invoice document with key-value pairs and a table structure.\n\n"
-            "**Step 2: Extraction**\n"
-            "I extracted the following fields:\n"
-            "- **Invoice Date:** 2026-04-01\n"
-            "- **Total:** 303,000 DKK\n"
-            "- **From:** Nordic Data Solutions ApS\n\n"
-            "**Step 3: Validation**\n"
-            "✅ Total matches subtotal + VAT\n"
-            "ℹ️ Net 29 days payment window\n\n"
-            "The invoice looks valid and ready for ERP import."
+            "I can process invoices end-to-end! Here's how the pipeline works:\n\n"
+            "**Step 1: Analysis** — I detect the document type and extract entities "
+            "(dates, organizations, emails)\n\n"
+            "**Step 2: Extraction** — I pull structured fields: Invoice Date, Due Date, "
+            "Total, VAT, From, To, Reference\n\n"
+            "**Step 3: Validation** — I check data consistency: does the total match "
+            "subtotal + VAT? Is the due date after the invoice date?\n\n"
+            "**Step 4: ERP Output** — I generate a structured JSON payload ready for "
+            "import into Infor M3, Business Central, or SAP.\n\n"
+            "Try it out — switch to the **Process** tab and paste an invoice, or click "
+            "the \"⚡ Process an invoice\" demo card above!"
         )
-        tool_calls = [{"tool": "analyze_document", "input": {"text": "(invoice text)", "focus": "general"}, "result": {"document_type": "invoice"}, "duration_ms": 3}]
+        tool_calls = [{"tool": "analyze_document", "input": {"text": "(demo)", "focus": "general"}, "result": {"document_type": "invoice"}, "duration_ms": 145}]
     elif any(kw in lower for kw in ["analyze", "document", "report"]):
         response = (
             "I'd be happy to analyze that document. I'll use the analyze tool to detect its type, "

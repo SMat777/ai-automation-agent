@@ -12,7 +12,7 @@
   --border-focus: #5b6eae;
   --text-1: #e8eaf0;
   --text-2: #9399b0;
-  --text-3: #717899;
+  --text-3: #8891b0;
   --accent: #6c7fd8;
   --accent-h: #8194e8;
   --accent-glow: rgba(108, 127, 216, 0.12);
@@ -1425,6 +1425,7 @@ footer a:hover { text-decoration: underline; }
   .step-viz { flex-wrap: wrap; }
   .process-overview { grid-template-columns: 1fr 1fr; }
   .kbd-hint { display: none; }
+  .chat-container { height: 400px; }
 }
 
 @media (max-width: 420px) {
