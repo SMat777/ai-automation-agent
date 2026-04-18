@@ -1,3 +1,101 @@
+// ── Typing hero effect ──────────────────────────────────────────────────────
+
+const HERO_PHRASES = [
+  'Process invoices and extract structured data',
+  'Analyze documents and detect key entities',
+  'Summarize reports into actionable insights',
+  'Run automated data pipelines on live APIs',
+  'Validate business documents for ERP import',
+];
+
+(function initTypingHero() {
+  const el = document.getElementById('hero-typed');
+  if (!el) return;
+  let phraseIndex = 0;
+  let charIndex = 0;
+  let deleting = false;
+  let pauseCounter = 0;
+
+  function tick() {
+    const phrase = HERO_PHRASES[phraseIndex];
+
+    if (!deleting) {
+      el.textContent = phrase.slice(0, charIndex + 1);
+      charIndex++;
+      if (charIndex === phrase.length) {
+        pauseCounter = 0;
+        deleting = true;
+        setTimeout(tick, 2000);
+        return;
+      }
+      setTimeout(tick, 45);
+    } else {
+      el.textContent = phrase.slice(0, charIndex);
+      charIndex--;
+      if (charIndex === 0) {
+        deleting = false;
+        phraseIndex = (phraseIndex + 1) % HERO_PHRASES.length;
+        setTimeout(tick, 300);
+        return;
+      }
+      setTimeout(tick, 25);
+    }
+  }
+
+  tick();
+})();
+
+// ── Toast notifications ─────────────────────────────────────────────────────
+
+function showToast(message, type = 'info') {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+
+  const icons = { success: '✓', error: '✗', info: 'ℹ' };
+  toast.innerHTML = `<span class="toast-icon" aria-hidden="true">${icons[type] || icons.info}</span><span class="toast-text">${message}</span>`;
+
+  container.appendChild(toast);
+
+  // Trigger animation
+  requestAnimationFrame(() => toast.classList.add('visible'));
+
+  setTimeout(() => {
+    toast.classList.remove('visible');
+    toast.addEventListener('transitionend', () => toast.remove());
+  }, 3000);
+}
+
+// ── Keyboard shortcuts ──────────────────────────────────────────────────────
+
+document.addEventListener('keydown', (e) => {
+  // Cmd/Ctrl + Enter → run active tool
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+    e.preventDefault();
+    const activePanel = document.querySelector('.tool-panel.active');
+    if (!activePanel) return;
+
+    const toolId = activePanel.id.replace('panel-', '');
+    const runners = {
+      process: runProcess,
+      analyze: runAnalyze,
+      extract: runExtract,
+      summarize: runSummarize,
+      pipeline: runPipeline,
+    };
+
+    if (runners[toolId]) runners[toolId]();
+  }
+
+  // Number keys 1-5 to switch tabs (when not in a text input)
+  if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+  const tabKeys = { '1': 'process', '2': 'analyze', '3': 'extract', '4': 'summarize', '5': 'pipeline' };
+  if (tabKeys[e.key]) {
+    e.preventDefault();
+    switchToTool(tabKeys[e.key]);
+  }
+});
+
 // ── Tab navigation ──────────────────────────────────────────────────────────
 
 document.querySelectorAll('.tool-tab').forEach(tab => {
@@ -34,6 +132,13 @@ async function checkHealth() {
 }
 
 checkHealth();
+
+// Update keyboard hints for non-Mac
+if (!navigator.platform.includes('Mac')) {
+  document.querySelectorAll('.kbd-hint').forEach(el => {
+    el.textContent = 'Ctrl↵';
+  });
+}
 
 // ── Loading states ──────────────────────────────────────────────────────────
 
@@ -88,10 +193,39 @@ function hideLoading() {
   clearInterval(overlay.dataset.interval);
 }
 
+// ── Button loading states ────────────────────────────────────────────────────
+
+function setButtonLoading(tool, loading) {
+  const btnMap = {
+    analyze: 'btn-analyze',
+    extract: 'btn-extract',
+    summarize: 'btn-summarize',
+    pipeline: 'btn-pipeline',
+    process: 'btn-process',
+  };
+  const btn = document.getElementById(btnMap[tool]);
+  if (!btn) return;
+
+  if (loading) {
+    btn.disabled = true;
+    btn.classList.add('loading');
+    btn.querySelector('.btn-label').dataset.original = btn.querySelector('.btn-label').textContent;
+    btn.querySelector('.btn-label').textContent = 'Running...';
+  } else {
+    btn.disabled = false;
+    btn.classList.remove('loading');
+    const label = btn.querySelector('.btn-label');
+    if (label.dataset.original) {
+      label.textContent = label.dataset.original;
+    }
+  }
+}
+
 // ── API call ────────────────────────────────────────────────────────────────
 
 async function callAPI(endpoint, body, tool) {
   showLoading(tool);
+  setButtonLoading(tool, true);
   hideResult();
 
   const start = performance.now();
@@ -108,17 +242,23 @@ async function callAPI(endpoint, body, tool) {
     if (!res.ok) {
       const err = await res.json();
       hideLoading();
+      setButtonLoading(tool, false);
       showError(err.detail || `Request failed (${res.status})`);
+      showToast(err.detail || `Request failed (${res.status})`, 'error');
       return null;
     }
 
     const data = await res.json();
     hideLoading();
+    setButtonLoading(tool, false);
     document.getElementById('result-time').textContent = `${elapsed}ms`;
+    showToast(`${tool.charAt(0).toUpperCase() + tool.slice(1)} completed in ${elapsed}ms`, 'success');
     return data;
   } catch (err) {
     hideLoading();
+    setButtonLoading(tool, false);
     showError(`Network error: ${err.message}`);
+    showToast('Network error — is the server running?', 'error');
     return null;
   }
 }
@@ -141,6 +281,7 @@ async function runProcess() {
     node.classList.remove('done', 'active');
   });
   stepsEl.classList.remove('hidden');
+  setButtonLoading('process', true);
   hideResult();
 
   // Animate steps sequentially while waiting for API
@@ -183,7 +324,9 @@ async function runProcess() {
     if (!res.ok) {
       const err = await res.json();
       resetProcessSteps();
+      setButtonLoading('process', false);
       showError(err.detail || `Request failed (${res.status})`);
+      showToast(err.detail || 'Processing failed', 'error');
       return;
     }
 
@@ -200,11 +343,15 @@ async function runProcess() {
     });
 
     document.getElementById('result-time').textContent = `${elapsed}ms`;
+    setButtonLoading('process', false);
+    showToast(`Document processed in ${elapsed}ms`, 'success');
     renderProcess(data.data);
   } catch (err) {
     clearInterval(stepInterval);
     resetProcessSteps();
+    setButtonLoading('process', false);
     showError(`Network error: ${err.message}`);
+    showToast('Network error — is the server running?', 'error');
   }
 }
 
@@ -388,11 +535,12 @@ function renderProcess(d) {
           <span class="process-section-icon">🔗</span>
           <h4>ERP-Ready Output</h4>
           <div class="erp-actions">
-            <button class="btn-small" onclick="copyErpOutput('json')">Copy JSON</button>
-            <button class="btn-small" onclick="copyErpOutput('csv')">Copy CSV</button>
+            <button class="btn-small" onclick="copyErpOutput('json', this)">Copy JSON</button>
+            <button class="btn-small" onclick="copyErpOutput('csv', this)">Copy CSV</button>
           </div>
         </div>
         <div class="process-section-body">
+          <p class="erp-description">Structured payload ready for import into ERP systems (Infor M3, Business Central, SAP) or downstream processing via API.</p>
           <pre class="erp-json" id="erp-json-output">${esc(JSON.stringify(d.erp_output, null, 2))}</pre>
         </div>
       </div>
@@ -402,7 +550,7 @@ function renderProcess(d) {
   showResult(html);
 }
 
-function copyErpOutput(format) {
+function copyErpOutput(format, btn) {
   const data = JSON.parse(document.getElementById('erp-json-output').textContent);
   let text;
 
@@ -416,7 +564,6 @@ function copyErpOutput(format) {
   }
 
   navigator.clipboard.writeText(text).then(() => {
-    const btn = event.target;
     const original = btn.textContent;
     btn.textContent = 'Copied!';
     btn.classList.add('copied');
@@ -681,7 +828,7 @@ function showResult(html) {
   document.getElementById('result-content').innerHTML = html;
   area.classList.remove('hidden');
   setTimeout(() => {
-    area.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    area.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, 100);
 }
 
@@ -703,10 +850,24 @@ function formatSummary(text) {
   if (text.includes('- ')) {
     const items = text.split('\n').filter(l => l.trim().startsWith('- '));
     return `<ul class="summary-list">${items.map(i =>
-      `<li>${esc(i.replace(/^- /, ''))}</li>`
+      `<li>${renderInlineMarkdown(i.replace(/^- /, ''))}</li>`
     ).join('')}</ul>`;
   }
-  return `<p class="summary-paragraph">${esc(text)}</p>`;
+  return `<p class="summary-paragraph">${renderInlineMarkdown(text)}</p>`;
+}
+
+function renderInlineMarkdown(text) {
+  let html = esc(text);
+  // Bold: **text** or __text__
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
+  // Italic: *text* or _text_
+  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  // Inline code: `text`
+  html = html.replace(/`(.+?)`/g, '<code class="inline-code">$1</code>');
+  // Links: [text](url)
+  html = html.replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  return html;
 }
 
 function flash(elementId) {
