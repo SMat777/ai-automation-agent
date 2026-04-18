@@ -21,6 +21,11 @@
     <section class="quick-demo">
       <h2>Try it — pick a demo</h2>
       <div class="demo-cards">
+        <button class="demo-card" onclick="loadDemo('process-invoice')">
+          <span class="demo-icon">⚡</span>
+          <strong>Process an invoice</strong>
+          <span class="demo-desc">Full pipeline: analyze structure, extract fields, summarize — in one flow</span>
+        </button>
         <button class="demo-card" onclick="loadDemo('analyze-job')">
           <span class="demo-icon">🔍</span>
           <strong>Analyze a job posting</strong>
@@ -30,11 +35,6 @@
           <span class="demo-icon">📋</span>
           <strong>Extract invoice data</strong>
           <span class="demo-desc">Pull structured fields from an unstructured invoice</span>
-        </button>
-        <button class="demo-card" onclick="loadDemo('summarize-report')">
-          <span class="demo-icon">✏️</span>
-          <strong>Summarize a report</strong>
-          <span class="demo-desc">Condense a lengthy business report into key takeaways</span>
         </button>
         <button class="demo-card" onclick="loadDemo('pipeline-github')">
           <span class="demo-icon">🔄</span>
@@ -46,6 +46,9 @@
 
     <!-- Tool nav -->
     <nav class="tool-nav" id="tool-nav">
+      <button class="tool-tab" data-tool="process">
+        <span class="tab-icon">⚡</span> Process
+      </button>
       <button class="tool-tab active" data-tool="analyze">
         <span class="tab-icon">🔍</span> Analyze
       </button>
@@ -61,6 +64,88 @@
     </nav>
 
     <main>
+
+      <!-- ── Process ── -->
+      <section id="panel-process" class="tool-panel">
+        <div class="panel-header">
+          <div>
+            <h2>Document Processing</h2>
+            <p>End-to-end document pipeline: paste a document and the system automatically analyzes structure, extracts key data fields, and generates a summary — all in one flow.</p>
+          </div>
+          <div class="example-picker">
+            <label>Load example:</label>
+            <select onchange="loadExample('process', this.value)">
+              <option value="">Choose...</option>
+              <option value="invoice">Invoice</option>
+              <option value="contract">Service contract</option>
+              <option value="meeting">Meeting notes</option>
+            </select>
+          </div>
+        </div>
+        <div class="input-group">
+          <label for="process-text">Document text</label>
+          <textarea id="process-text" rows="10" placeholder="Paste an invoice, contract, report, or meeting notes..."></textarea>
+        </div>
+        <div class="input-row">
+          <div class="input-group compact">
+            <label for="process-type">Document type</label>
+            <select id="process-type">
+              <option value="auto">Auto-detect</option>
+              <option value="invoice">Invoice</option>
+              <option value="contract">Contract</option>
+              <option value="report">Report</option>
+              <option value="meeting_notes">Meeting notes</option>
+            </select>
+          </div>
+          <button class="btn-run" id="btn-process" onclick="runProcess()">
+            <span class="btn-label">Process Document</span>
+          </button>
+        </div>
+
+        <!-- Step progress tracker -->
+        <div id="process-steps" class="process-steps hidden">
+          <div class="process-step" data-step="analyze">
+            <div class="step-status">
+              <span class="step-icon pending">○</span>
+            </div>
+            <div class="step-info">
+              <strong>Analyze</strong>
+              <span>Detect type, extract entities, identify structure</span>
+            </div>
+            <span class="step-time"></span>
+          </div>
+          <div class="process-step" data-step="extract">
+            <div class="step-status">
+              <span class="step-icon pending">○</span>
+            </div>
+            <div class="step-info">
+              <strong>Extract</strong>
+              <span>Pull structured data fields from document</span>
+            </div>
+            <span class="step-time"></span>
+          </div>
+          <div class="process-step" data-step="summarize">
+            <div class="step-status">
+              <span class="step-icon pending">○</span>
+            </div>
+            <div class="step-info">
+              <strong>Summarize</strong>
+              <span>Generate concise summary of key information</span>
+            </div>
+            <span class="step-time"></span>
+          </div>
+          <div class="process-step" data-step="validate">
+            <div class="step-status">
+              <span class="step-icon pending">○</span>
+            </div>
+            <div class="step-info">
+              <strong>Validate</strong>
+              <span>Check data consistency and flag potential issues</span>
+            </div>
+            <span class="step-time"></span>
+          </div>
+        </div>
+      </section>
 
       <!-- ── Analyze ── -->
       <section id="panel-analyze" class="tool-panel active">

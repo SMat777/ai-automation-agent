@@ -123,6 +123,310 @@ async function callAPI(endpoint, body, tool) {
   }
 }
 
+// ── Document processing ─────────────────────────────────────────────────────
+
+async function runProcess() {
+  const text = document.getElementById('process-text').value.trim();
+  if (!text) { flash('process-text'); return; }
+
+  const docType = document.getElementById('process-type').value;
+  const stepsEl = document.getElementById('process-steps');
+  const stepNodes = stepsEl.querySelectorAll('.process-step');
+
+  // Reset and show step tracker
+  stepNodes.forEach(node => {
+    node.querySelector('.step-icon').className = 'step-icon pending';
+    node.querySelector('.step-icon').textContent = '○';
+    node.querySelector('.step-time').textContent = '';
+    node.classList.remove('done', 'active');
+  });
+  stepsEl.classList.remove('hidden');
+  hideResult();
+
+  // Animate steps sequentially while waiting for API
+  const stepNames = ['analyze', 'extract', 'summarize', 'validate'];
+  let currentStep = 0;
+
+  function activateStep(index) {
+    if (index >= stepNames.length) return;
+    const node = stepNodes[index];
+    node.classList.add('active');
+    node.querySelector('.step-icon').className = 'step-icon running';
+    node.querySelector('.step-icon').textContent = '◌';
+  }
+
+  activateStep(0);
+  const stepInterval = setInterval(() => {
+    if (currentStep < stepNames.length) {
+      const node = stepNodes[currentStep];
+      node.classList.remove('active');
+      node.classList.add('done');
+      node.querySelector('.step-icon').className = 'step-icon done';
+      node.querySelector('.step-icon').textContent = '✓';
+      currentStep++;
+      activateStep(currentStep);
+    }
+  }, 400);
+
+  const start = performance.now();
+
+  try {
+    const res = await fetch('/api/process', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, document_type: docType }),
+    });
+
+    clearInterval(stepInterval);
+    const elapsed = Math.round(performance.now() - start);
+
+    if (!res.ok) {
+      const err = await res.json();
+      resetProcessSteps();
+      showError(err.detail || `Request failed (${res.status})`);
+      return;
+    }
+
+    const data = await res.json();
+
+    // Update steps with actual results
+    data.data.steps.forEach((step, i) => {
+      const node = stepNodes[i];
+      node.classList.remove('active');
+      node.classList.add('done');
+      node.querySelector('.step-icon').className = 'step-icon done';
+      node.querySelector('.step-icon').textContent = '✓';
+      node.querySelector('.step-time').textContent = `${step.duration_ms}ms`;
+    });
+
+    document.getElementById('result-time').textContent = `${elapsed}ms`;
+    renderProcess(data.data);
+  } catch (err) {
+    clearInterval(stepInterval);
+    resetProcessSteps();
+    showError(`Network error: ${err.message}`);
+  }
+}
+
+function resetProcessSteps() {
+  const stepsEl = document.getElementById('process-steps');
+  stepsEl.classList.add('hidden');
+}
+
+function renderProcess(d) {
+  const analysis = d.steps[0].data;
+  const extraction = d.steps[1].data;
+  const summary = d.steps[2].data;
+  const validation = d.steps[3].data;
+
+  const allEntities = [
+    ...analysis.entities.emails.map(e => ({ icon: '📧', label: 'Email', value: e })),
+    ...analysis.entities.dates.map(e => ({ icon: '📅', label: 'Date', value: e })),
+    ...analysis.entities.urls.map(e => ({ icon: '🔗', label: 'URL', value: e })),
+    ...analysis.entities.organizations.map(e => ({ icon: '🏢', label: 'Org', value: e })),
+  ];
+
+  const found = Object.entries(extraction.extracted).filter(([, v]) => v !== null);
+  const missing = Object.entries(extraction.extracted).filter(([, v]) => v === null);
+
+  const confidencePct = Math.round(d.confidence * 100);
+  const confidenceColor = confidencePct >= 80 ? 'high' : confidencePct >= 50 ? 'mid' : 'low';
+
+  const severityIcon = { error: '❌', warning: '⚠️', info: 'ℹ️', pass: '✅' };
+
+  setResultHeader('Document Processing Report',
+    `${d.steps.length} processing steps completed in ${d.total_duration_ms}ms`);
+
+  const html = `
+    <div class="process-report">
+
+      <!-- Smart summary (if available) -->
+      ${summary.smart_summary ? `
+        <div class="smart-summary">
+          <span class="smart-summary-icon">📄</span>
+          <p>${esc(summary.smart_summary)}</p>
+        </div>
+      ` : ''}
+
+      <!-- Overview card -->
+      <div class="process-overview">
+        <div class="overview-stat">
+          <span class="overview-label">Document Type</span>
+          <span class="tag type-tag">${d.document_type.replace(/_/g, ' ')}</span>
+        </div>
+        <div class="overview-stat">
+          <span class="overview-label">Fields Extracted</span>
+          <span class="overview-value">${d.fields_extracted}</span>
+        </div>
+        <div class="overview-stat">
+          <span class="overview-label">Entities Found</span>
+          <span class="overview-value">${d.entities_found}</span>
+        </div>
+        <div class="overview-stat">
+          <span class="overview-label">Confidence</span>
+          <div class="confidence-bar">
+            <div class="confidence-fill ${confidenceColor}" style="width: ${confidencePct}%"></div>
+          </div>
+          <span class="confidence-label">${confidencePct}%</span>
+        </div>
+      </div>
+
+      <!-- Step 1: Analysis -->
+      <div class="process-section">
+        <div class="process-section-header">
+          <span class="process-section-icon">🔍</span>
+          <h4>Analysis</h4>
+          <span class="step-badge">${d.steps[0].duration_ms}ms</span>
+        </div>
+        <div class="process-section-body">
+          <div class="result-grid">
+            <div class="result-card">
+              <h4>Statistics</h4>
+              ${statRow('Words', analysis.statistics.word_count)}
+              ${statRow('Sentences', analysis.statistics.sentence_count)}
+              ${statRow('Paragraphs', analysis.statistics.paragraph_count)}
+              ${statRow('Lines', analysis.statistics.line_count)}
+            </div>
+            <div class="result-card">
+              <h4>Structure</h4>
+              ${analysis.sections.length > 0
+                ? `<div class="section-tree">${analysis.sections.map(s =>
+                    `<div class="section-item level-${s.level}"><span class="section-marker">H${s.level}</span>${esc(s.title)}</div>`
+                  ).join('')}</div>`
+                : `<p class="empty-state">No heading structure detected</p>`}
+            </div>
+            ${allEntities.length > 0 ? `
+              <div class="result-card full-width">
+                <h4>Entities <span class="count-badge">${allEntities.length}</span></h4>
+                <div class="entity-grid">${allEntities.map(e =>
+                  `<div class="entity-item"><span class="entity-icon">${e.icon}</span><div><span class="entity-label">${e.label}</span><span class="entity-value">${esc(e.value)}</span></div></div>`
+                ).join('')}</div>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2: Extraction -->
+      <div class="process-section">
+        <div class="process-section-header">
+          <span class="process-section-icon">📋</span>
+          <h4>Extraction</h4>
+          <span class="step-badge">${d.steps[1].duration_ms}ms</span>
+        </div>
+        <div class="process-section-body">
+          <table class="data-table">
+            <thead><tr><th>Field</th><th>Value</th><th>Status</th></tr></thead>
+            <tbody>
+              ${found.map(([k, v]) => `
+                <tr>
+                  <td class="field-name">${esc(k)}</td>
+                  <td class="field-value">${esc(String(v))}</td>
+                  <td><span class="status-pill ok">found</span></td>
+                </tr>
+              `).join('')}
+              ${missing.map(([k]) => `
+                <tr class="missing-row">
+                  <td class="field-name">${esc(k)}</td>
+                  <td class="field-value empty">—</td>
+                  <td><span class="status-pill miss">missing</span></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <div class="extraction-summary">
+            <span class="tag">${extraction.strategy} strategy</span>
+            ${(extraction.strategies_used || []).map(s => `<span class="tag">${s}</span>`).join('')}
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3: Summary -->
+      <div class="process-section">
+        <div class="process-section-header">
+          <span class="process-section-icon">✏️</span>
+          <h4>Summary</h4>
+          <span class="step-badge">${d.steps[2].duration_ms}ms</span>
+        </div>
+        <div class="process-section-body">
+          <div class="summary-text">${formatSummary(summary.summary)}</div>
+          <div class="summary-meta">
+            <span class="tag">${summary.method === 'ai' ? '🤖 AI-powered' : '📝 Extractive'}</span>
+            <span class="tag">${summary.format}</span>
+            <span class="tag">${summary.original_word_count} words → ${summary.summary.split(/\s+/).length} words</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4: Validation -->
+      <div class="process-section">
+        <div class="process-section-header">
+          <span class="process-section-icon">${d.validation_errors > 0 ? '⚠️' : '✅'}</span>
+          <h4>Validation</h4>
+          <span class="step-badge">${d.steps[3].duration_ms}ms</span>
+        </div>
+        <div class="process-section-body">
+          ${validation.issues.length > 0 ? `
+            <div class="validation-list">
+              ${validation.issues.map(issue => `
+                <div class="validation-item ${issue.severity}">
+                  <span class="validation-icon">${severityIcon[issue.severity] || 'ℹ️'}</span>
+                  <div class="validation-content">
+                    <span class="validation-field">${esc(issue.field)}</span>
+                    <span class="validation-message">${esc(issue.message)}</span>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          ` : '<p class="empty-state">No validation issues found</p>'}
+        </div>
+      </div>
+
+      <!-- ERP Output -->
+      <div class="process-section">
+        <div class="process-section-header">
+          <span class="process-section-icon">🔗</span>
+          <h4>ERP-Ready Output</h4>
+          <div class="erp-actions">
+            <button class="btn-small" onclick="copyErpOutput('json')">Copy JSON</button>
+            <button class="btn-small" onclick="copyErpOutput('csv')">Copy CSV</button>
+          </div>
+        </div>
+        <div class="process-section-body">
+          <pre class="erp-json" id="erp-json-output">${esc(JSON.stringify(d.erp_output, null, 2))}</pre>
+        </div>
+      </div>
+
+    </div>
+  `;
+  showResult(html);
+}
+
+function copyErpOutput(format) {
+  const data = JSON.parse(document.getElementById('erp-json-output').textContent);
+  let text;
+
+  if (format === 'csv') {
+    const fields = data.extracted_fields;
+    const headers = Object.keys(fields).join(',');
+    const values = Object.values(fields).map(v => `"${v}"`).join(',');
+    text = `${headers}\n${values}`;
+  } else {
+    text = JSON.stringify(data, null, 2);
+  }
+
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = event.target;
+    const original = btn.textContent;
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = original;
+      btn.classList.remove('copied');
+    }, 1500);
+  });
+}
+
 // ── Tool runners ────────────────────────────────────────────────────────────
 
 async function runAnalyze() {
