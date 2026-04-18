@@ -89,7 +89,7 @@ document.addEventListener('keydown', (e) => {
 
   // Number keys 1-5 to switch tabs (when not in a text input)
   if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
-  const tabKeys = { '1': 'process', '2': 'analyze', '3': 'extract', '4': 'summarize', '5': 'pipeline' };
+  const tabKeys = { '1': 'process', '2': 'analyze', '3': 'extract', '4': 'summarize', '5': 'pipeline', '6': 'chat' };
   if (tabKeys[e.key]) {
     e.preventDefault();
     switchToTool(tabKeys[e.key]);
@@ -126,6 +126,7 @@ async function checkHealth() {
     } else {
       bar.innerHTML = '<span class="status-dot warn"></span> Running in demo mode — extractive summarization';
     }
+    updateChatBadge(data.api_key_configured);
   } catch {
     bar.innerHTML = '<span class="status-dot err"></span> Server not reachable';
   }
@@ -814,6 +815,210 @@ function markdownTableToHtml(md) {
       <tbody>${rows.map(r => `<tr>${r.map(c => `<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody>
     </table>
   `;
+}
+
+// ── Agent Chat ──────────────────────────────────────────────────────────────
+
+let chatBusy = false;
+
+function handleChatSubmit(e) {
+  e.preventDefault();
+  const input = document.getElementById('chat-input');
+  const message = input.value.trim();
+  if (!message || chatBusy) return;
+
+  input.value = '';
+  input.style.height = 'auto';
+  sendChatMessage(message);
+}
+
+function sendChatSuggestion(text) {
+  if (chatBusy) return;
+  sendChatMessage(text);
+}
+
+async function sendChatMessage(message) {
+  chatBusy = true;
+  const messages = document.getElementById('chat-messages');
+  const sendBtn = document.getElementById('chat-send-btn');
+  sendBtn.disabled = true;
+
+  // Remove welcome if present
+  const welcome = messages.querySelector('.chat-welcome');
+  if (welcome) welcome.remove();
+
+  // Add user message
+  appendChatMessage('user', message);
+
+  // Add agent message placeholder
+  const agentBubble = appendChatMessage('agent', '');
+  const textEl = agentBubble.querySelector('.chat-text');
+  const metaEl = agentBubble.querySelector('.chat-meta');
+
+  // Show typing indicator
+  textEl.innerHTML = '<span class="typing-indicator"><span></span><span></span><span></span></span>';
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message }),
+    });
+
+    if (!res.ok) {
+      textEl.textContent = 'Sorry, something went wrong. Please try again.';
+      chatBusy = false;
+      sendBtn.disabled = false;
+      return;
+    }
+
+    // Parse SSE stream
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let fullText = '';
+    let toolCalls = [];
+
+    textEl.textContent = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (line.startsWith('event: ')) {
+          var currentEvent = line.slice(7).trim();
+        } else if (line.startsWith('data: ') && currentEvent) {
+          const data = line.slice(6);
+
+          if (currentEvent === 'text') {
+            fullText += data;
+            textEl.innerHTML = renderChatMarkdown(fullText);
+            scrollChatToBottom();
+          } else if (currentEvent === 'tool_call') {
+            try {
+              const tc = JSON.parse(data);
+              toolCalls.push(tc);
+              appendToolCard(agentBubble, tc);
+              scrollChatToBottom();
+            } catch { /* skip malformed */ }
+          } else if (currentEvent === 'done') {
+            try {
+              const meta = JSON.parse(data);
+              if (meta.demo_mode) {
+                metaEl.textContent = 'Demo mode — connect API key for live agent';
+              } else {
+                metaEl.textContent = `${meta.iterations} iteration${meta.iterations > 1 ? 's' : ''} · ${meta.tool_calls} tool call${meta.tool_calls !== 1 ? 's' : ''} · ${meta.duration_ms}ms`;
+              }
+            } catch { /* skip */ }
+          } else if (currentEvent === 'error') {
+            textEl.textContent = `Error: ${data}`;
+          }
+          currentEvent = null;
+        }
+      }
+    }
+
+    // Final render with markdown
+    if (fullText) {
+      textEl.innerHTML = renderChatMarkdown(fullText);
+    }
+
+  } catch (err) {
+    textEl.textContent = 'Network error — is the server running?';
+  }
+
+  chatBusy = false;
+  sendBtn.disabled = false;
+  scrollChatToBottom();
+}
+
+function appendChatMessage(role, text) {
+  const messages = document.getElementById('chat-messages');
+  const bubble = document.createElement('div');
+  bubble.className = `chat-bubble chat-${role}`;
+
+  if (role === 'user') {
+    bubble.innerHTML = `<div class="chat-text">${esc(text)}</div>`;
+  } else {
+    bubble.innerHTML = `
+      <div class="chat-agent-header"><span class="agent-avatar">🤖</span> Agent</div>
+      <div class="chat-text">${text ? renderChatMarkdown(text) : ''}</div>
+      <div class="chat-meta"></div>
+    `;
+  }
+
+  messages.appendChild(bubble);
+  scrollChatToBottom();
+  return bubble;
+}
+
+function appendToolCard(bubble, tc) {
+  const card = document.createElement('div');
+  card.className = 'chat-tool-card';
+  card.innerHTML = `
+    <div class="tool-card-header">
+      <span class="tool-card-icon">🔧</span>
+      <strong>${esc(tc.tool)}</strong>
+      ${tc.duration_ms ? `<span class="tool-card-time">${tc.duration_ms}ms</span>` : ''}
+    </div>
+    ${tc.result ? `<div class="tool-card-result">${esc(JSON.stringify(tc.result, null, 2).slice(0, 200))}${JSON.stringify(tc.result).length > 200 ? '...' : ''}</div>` : ''}
+  `;
+
+  const textEl = bubble.querySelector('.chat-text');
+  bubble.insertBefore(card, textEl.nextSibling);
+}
+
+function renderChatMarkdown(text) {
+  let html = esc(text);
+  // Bold
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  // Italic
+  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  // Inline code
+  html = html.replace(/`(.+?)`/g, '<code class="inline-code">$1</code>');
+  // Line breaks
+  html = html.replace(/\n/g, '<br>');
+  return html;
+}
+
+function scrollChatToBottom() {
+  const container = document.getElementById('chat-messages');
+  container.scrollTop = container.scrollHeight;
+}
+
+// Auto-resize chat input
+document.addEventListener('DOMContentLoaded', () => {
+  const input = document.getElementById('chat-input');
+  if (input) {
+    input.addEventListener('input', () => {
+      input.style.height = 'auto';
+      input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+    });
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        handleChatSubmit(e);
+      }
+    });
+  }
+});
+
+// Set chat mode badge on health check
+function updateChatBadge(apiKeyConfigured) {
+  const badge = document.getElementById('chat-mode-badge');
+  if (!badge) return;
+  if (apiKeyConfigured) {
+    badge.textContent = '🟢 Live Agent';
+    badge.className = 'chat-mode-badge live';
+  } else {
+    badge.textContent = '🟡 Demo Mode';
+    badge.className = 'chat-mode-badge demo';
+  }
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
