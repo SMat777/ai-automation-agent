@@ -3,7 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="AI-powered document processing: analyze structure, extract data, summarize content, and validate business documents. Built with Python, TypeScript, and Claude AI.">
   <title>AI Automation Agent</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -49,10 +51,10 @@
 
     <!-- Tool nav -->
     <nav class="tool-nav" id="tool-nav">
-      <button class="tool-tab" data-tool="process">
+      <button class="tool-tab active" data-tool="process">
         <span class="tab-icon">⚡</span> Process
       </button>
-      <button class="tool-tab active" data-tool="analyze">
+      <button class="tool-tab" data-tool="analyze">
         <span class="tab-icon">🔍</span> Analyze
       </button>
       <button class="tool-tab" data-tool="extract">
@@ -69,15 +71,15 @@
     <main>
 
       <!-- ── Process ── -->
-      <section id="panel-process" class="tool-panel">
+      <section id="panel-process" class="tool-panel active">
         <div class="panel-header">
           <div>
             <h2>Document Processing</h2>
             <p>End-to-end document pipeline: paste a document and the system automatically analyzes structure, extracts key data fields, and generates a summary — all in one flow.</p>
           </div>
           <div class="example-picker">
-            <label>Load example:</label>
-            <select onchange="loadExample('process', this.value)">
+            <label for="process-example">Load example:</label>
+            <select id="process-example" onchange="loadExample('process', this.value)">
               <option value="">Choose...</option>
               <option value="invoice">Invoice</option>
               <option value="contract">Service contract</option>
@@ -152,15 +154,15 @@
       </section>
 
       <!-- ── Analyze ── -->
-      <section id="panel-analyze" class="tool-panel active">
+      <section id="panel-analyze" class="tool-panel">
         <div class="panel-header">
           <div>
             <h2>Document Analysis</h2>
             <p>Detects document type, extracts emails, dates, URLs, organizations, heading structure, and key points. Works on any text — emails, reports, markdown, tables.</p>
           </div>
           <div class="example-picker">
-            <label>Load example:</label>
-            <select onchange="loadExample('analyze', this.value)">
+            <label for="analyze-example">Load example:</label>
+            <select id="analyze-example" onchange="loadExample('analyze', this.value)">
               <option value="">Choose...</option>
               <option value="job-posting">Job posting</option>
               <option value="email">Business email</option>
@@ -197,8 +199,8 @@
             <p>Pulls structured key-value pairs from unstructured text. Supports three strategies: key-value parsing, markdown table extraction, and list parsing. Auto mode tries all three.</p>
           </div>
           <div class="example-picker">
-            <label>Load example:</label>
-            <select onchange="loadExample('extract', this.value)">
+            <label for="extract-example">Load example:</label>
+            <select id="extract-example" onchange="loadExample('extract', this.value)">
               <option value="">Choose...</option>
               <option value="invoice">Invoice</option>
               <option value="contact">Contact card</option>
@@ -239,8 +241,8 @@
             <p>Condenses long text into key takeaways. Uses Claude AI when an API key is configured, otherwise falls back to extractive summarization — both are fully functional.</p>
           </div>
           <div class="example-picker">
-            <label>Load example:</label>
-            <select onchange="loadExample('summarize', this.value)">
+            <label for="summarize-example">Load example:</label>
+            <select id="summarize-example" onchange="loadExample('summarize', this.value)">
               <option value="">Choose...</option>
               <option value="business">Business report</option>
               <option value="technical">Technical documentation</option>
@@ -366,7 +368,7 @@
     </section>
 
     <footer>
-      <p>Built by <a href="https://github.com/SMat777" target="_blank">Simon Mathiasen</a> · <a href="https://github.com/SMat777/ai-automation-agent" target="_blank">View source on GitHub</a></p>
+      <p>Built by <a href="https://github.com/SMat777" target="_blank" rel="noopener noreferrer">Simon Mathiasen</a> · <a href="https://github.com/SMat777/ai-automation-agent" target="_blank" rel="noopener noreferrer">View source on GitHub</a></p>
     </footer>
   </div>
 

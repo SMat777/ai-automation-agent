@@ -53,7 +53,7 @@ function showToast(message, type = 'info') {
   toast.className = `toast toast-${type}`;
 
   const icons = { success: '✓', error: '✗', info: 'ℹ' };
-  toast.innerHTML = `<span class="toast-icon">${icons[type] || icons.info}</span><span class="toast-text">${message}</span>`;
+  toast.innerHTML = `<span class="toast-icon" aria-hidden="true">${icons[type] || icons.info}</span><span class="toast-text">${message}</span>`;
 
   container.appendChild(toast);
 
@@ -535,11 +535,12 @@ function renderProcess(d) {
           <span class="process-section-icon">🔗</span>
           <h4>ERP-Ready Output</h4>
           <div class="erp-actions">
-            <button class="btn-small" onclick="copyErpOutput('json')">Copy JSON</button>
-            <button class="btn-small" onclick="copyErpOutput('csv')">Copy CSV</button>
+            <button class="btn-small" onclick="copyErpOutput('json', this)">Copy JSON</button>
+            <button class="btn-small" onclick="copyErpOutput('csv', this)">Copy CSV</button>
           </div>
         </div>
         <div class="process-section-body">
+          <p class="erp-description">Structured payload ready for import into ERP systems (Infor M3, Business Central, SAP) or downstream processing via API.</p>
           <pre class="erp-json" id="erp-json-output">${esc(JSON.stringify(d.erp_output, null, 2))}</pre>
         </div>
       </div>
@@ -549,7 +550,7 @@ function renderProcess(d) {
   showResult(html);
 }
 
-function copyErpOutput(format) {
+function copyErpOutput(format, btn) {
   const data = JSON.parse(document.getElementById('erp-json-output').textContent);
   let text;
 
@@ -563,7 +564,6 @@ function copyErpOutput(format) {
   }
 
   navigator.clipboard.writeText(text).then(() => {
-    const btn = event.target;
     const original = btn.textContent;
     btn.textContent = 'Copied!';
     btn.classList.add('copied');
@@ -828,7 +828,7 @@ function showResult(html) {
   document.getElementById('result-content').innerHTML = html;
   area.classList.remove('hidden');
   setTimeout(() => {
-    area.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    area.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, 100);
 }
 
