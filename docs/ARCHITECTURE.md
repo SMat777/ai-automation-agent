@@ -1,107 +1,203 @@
 # Architecture
 
+> **Status:** Living document. Updated at the end of each upgrade phase.
+> Last update: 2026-04-18 (Fase 0).
+
 ## Overview
 
-This project consists of two main components that work together:
+The project is a production-oriented showcase of AI-assisted document processing,
+built from three cooperating components:
 
-1. **AI Agent** (Python) — An intelligent agent that receives tasks, decides which tools to use, executes them, and synthesizes results
-2. **Automation Pipeline** (TypeScript) — A data processing pipeline that orchestrates multi-step workflows
+1. **AI Agent** (Python) — ReAct reasoning loop over a set of composable tools.
+2. **Automation Pipeline** (TypeScript) — Pipe-and-filter data workflow with Zod validation.
+3. **Web Application** (FastAPI + vanilla JS SPA) — HTTP API + browser UI that ties everything together.
 
-## AI Agent Architecture
+All three are designed to run standalone *and* in composition. The agent can trigger
+the pipeline; the web app exposes the agent; the pipeline can be invoked directly.
 
-### The Agent Loop
+---
 
-The agent follows a **ReAct** (Reasoning + Acting) pattern:
-
-```
-User Task → Think → Choose Tool → Execute → Observe → Think → ... → Final Answer
-```
-
-Each iteration:
-1. The agent receives the current conversation (system prompt + user task + previous tool results)
-2. Claude decides whether to call a tool or return a final answer
-3. If a tool is called, the result is added to the conversation
-4. The loop continues until Claude returns a final text response
-
-### Tool System
-
-Tools are Python functions decorated with metadata that tells the agent what they do:
-
-```python
-# Each tool has:
-# - name: unique identifier
-# - description: what it does (used by the agent to decide when to use it)
-# - input_schema: JSON Schema defining expected parameters
-# - handler: the actual function that executes
-```
-
-The agent doesn't have hardcoded logic for when to use each tool — it decides based on the task description and tool descriptions. This is the core of **tool calling**: the AI model selects and parameterizes tools at runtime.
-
-### Available Tools
-
-| Tool | Purpose | Input | Output |
-|------|---------|-------|--------|
-| `analyze_document` | Extract structure and key points from text | Document text | Structured analysis |
-| `extract_data` | Pull specific data points from structured text | Text + schema | Extracted data |
-| `summarize` | Create concise summaries | Text + format | Summary |
-
-### Prompt Engineering
-
-System prompts are stored in `agent/prompts/` and define:
-- The agent's role and capabilities
-- Available tools and when to use them
-- Output format expectations
-- Error handling behavior
-
-## Automation Pipeline Architecture
-
-### Pipeline Pattern
-
-The TypeScript automation follows a **pipe-and-filter** pattern:
+## Current architecture
 
 ```
-Source → Connector → Transform → Transform → Output
+┌────────────────────────────────────────────────────────────────────────────┐
+│  Browser (frontend/)                                                       │
+│  Single-page app: Process · Analyze · Extract · Summarize · Chat           │
+│  SSE streaming for chat · markdown rendering · toast notifications         │
+└──────────────────────────────────┬─────────────────────────────────────────┘
+                                   │  HTTPS (JSON + SSE)
+                                   ▼
+┌────────────────────────────────────────────────────────────────────────────┐
+│  FastAPI server (server.py)                                                │
+│  ┌──────────┬──────────┬───────────┬──────────┬──────────┬──────────────┐  │
+│  │ /analyze │ /extract │/summarize │ /process │/pipeline │ /chat (SSE)  │  │
+│  └──────────┴──────────┴───────────┴──────────┴──────────┴──────────────┘  │
+│  Pydantic request validation · CORS · static file serving (frontend/)      │
+└────────────────┬───────────────────────────────────────────┬───────────────┘
+                 │ Python function calls                     │ subprocess
+                 ▼                                           ▼
+┌─────────────────────────────────────┐  ┌───────────────────────────────────┐
+│  Agent core (agent/)                │  │  Automation pipeline              │
+│  ┌────────────┐  ┌────────────────┐ │  │  (automation/src/)                │
+│  │ ReAct loop │  │ Tool router    │ │  │  ┌─────────────────────────────┐  │
+│  │ (agent.py) │──│ & dispatcher   │ │  │  │ Connectors (API / file)     │  │
+│  └────────────┘  └───────┬────────┘ │  │  └──────────────┬──────────────┘  │
+│                          │          │  │                 ▼                 │
+│  ┌─────────┬─────────┬───┴────────┐ │  │  ┌─────────────────────────────┐  │
+│  │ analyze │ extract │ summarize  │ │  │  │ Transforms:                 │  │
+│  └─────────┴─────────┴────────────┘ │  │  │ clean · filter · map        │  │
+│  ┌────────────────────────────────┐ │  │  │ aggregate · format          │  │
+│  │ run_pipeline (invokes TS)      │─┼──┼─▶└──────────────┬──────────────┘  │
+│  └────────────────────────────────┘ │  │                 ▼                 │
+│                                     │  │  ┌─────────────────────────────┐  │
+│  Claude Sonnet 4 via Anthropic SDK  │  │  │ Output (Markdown / CSV)     │  │
+└─────────────────────────────────────┘  │  └─────────────────────────────┘  │
+                                         │  Validated with Zod at every step │
+                                         └───────────────────────────────────┘
 ```
 
-Each step:
-1. **Connectors** fetch data from external sources (APIs, files)
-2. **Transforms** clean, map, and restructure data
-3. **Output** delivers results (files, reports, notifications)
+---
 
-### Data Flow
+## Component details
 
-```typescript
-// Conceptual pipeline
-const result = await pipeline([
-  fetchFromAPI("https://api.example.com/data"),
-  cleanData({ removeNulls: true }),
-  mapToSchema(outputSchema),
-  writeReport("output/report.json")
-]);
+### AI Agent (Python)
+
+The agent implements the **ReAct** (Reasoning + Acting) pattern: it alternates
+between thinking about the task and calling tools, synthesising the results into
+a final answer.
+
+```
+ ┌──────────┐   ┌──────────┐   ┌──────────┐
+ │  Think   │──▶│   Act    │──▶│ Observe  │
+ └──────────┘   └──────────┘   └─────┬────┘
+      ▲                              │
+      └──────────────────────────────┘
+              (until final answer)
 ```
 
-### Type Safety
+Per iteration:
 
-All data flowing through the pipeline is validated with **Zod** schemas:
-- Input validation at connectors
-- Transform type guarantees
-- Output schema enforcement
+1. The current conversation (system prompt + user task + prior tool results) is sent to Claude.
+2. Claude returns either a `tool_use` block or a final text answer.
+3. If `tool_use`: the tool runs, the result is appended to the conversation, loop continues.
+4. If text: the answer is returned.
 
-## Integration Layer
+**Streaming:** `Agent.run_stream()` uses the Anthropic streaming API and yields text
+chunks as they arrive. Tool calls still execute synchronously between segments.
 
-The agent and pipeline communicate through:
+### Tools
 
-1. **Agent → Pipeline**: Agent calls a tool that triggers a pipeline run
-2. **Pipeline → Agent**: Pipeline output is fed back as tool results
+Each tool is a Python function with metadata: name, description, JSON Schema.
+The agent *does not* hardcode tool logic — it selects tools based on descriptions
+at runtime. This is the essence of tool calling.
 
-This creates a feedback loop where the agent can orchestrate complex multi-step processes that combine AI reasoning with deterministic data processing.
+| Tool             | Purpose                                           | Input                   | Output                   |
+|------------------|---------------------------------------------------|-------------------------|--------------------------|
+| `analyze_document` | Detect type, extract entities, structure         | text + focus            | structured analysis      |
+| `extract_data`    | Pull key-value pairs, tables, lists              | text + fields + strategy| extracted values         |
+| `summarize`       | AI-powered (Claude) or extractive summarization  | text + format           | summary                  |
+| `run_pipeline`    | Trigger TypeScript automation pipeline           | task + pipeline name    | pipeline output          |
 
-## Design Decisions
+### Automation Pipeline (TypeScript)
 
-| Decision | Rationale |
-|----------|-----------|
-| Python for agent | Best SDK support for Claude API, rich AI ecosystem |
-| TypeScript for automation | Type safety for data pipelines, Node.js async model |
-| Separate concerns | Agent handles reasoning, pipeline handles data flow |
-| Tool-based architecture | Extensible — add new capabilities without changing agent logic |
-| Zod validation | Runtime safety for external data, self-documenting schemas |
+A **pipe-and-filter** pipeline. Each step consumes the previous step's output.
+Type safety is enforced at every boundary using Zod schemas.
+
+```
+ Fetch  →  Clean  →  Filter  →  Map  →  Aggregate  →  Format
+```
+
+Two concrete pipelines:
+
+- `posts` — fetches user activity from JSONPlaceholder, aggregates by user.
+- `github` — fetches live repos from GitHub API, groups by language, counts stars.
+
+### Web Layer (FastAPI + frontend)
+
+FastAPI serves:
+
+- REST endpoints for each tool, validated with Pydantic models.
+- A Server-Sent Events stream for the chat endpoint (`/api/chat`).
+- The static frontend (`frontend/index.html`, `app.js`, `style.css`, `examples.js`).
+- An auto-generated OpenAPI schema (`/openapi.json`).
+
+The frontend is deliberately **build-step-free** — plain HTML/CSS/JS, no bundler,
+no framework. This keeps the deployment footprint tiny and the code readable at
+a glance. It will stay that way until a frontend concern actually justifies
+tooling (e.g. the Prompt Workbench in Fase 4 might introduce a lightweight setup).
+
+### Integration points
+
+| From              | To                | Mechanism                       |
+|-------------------|-------------------|---------------------------------|
+| Browser           | FastAPI           | `fetch()` + SSE                 |
+| FastAPI           | Agent core        | Direct Python function calls    |
+| Agent core        | Tools             | In-process dispatch             |
+| Agent core        | TypeScript pipeline | `subprocess` → `npx tsx`     |
+| Agent core        | Claude API        | Anthropic SDK (HTTPS)           |
+
+---
+
+## Design decisions
+
+For *why* behind each choice, see [ADRs](./adr/README.md).
+Summarised here:
+
+| Decision                        | Rationale                                           | ADR    |
+|---------------------------------|-----------------------------------------------------|--------|
+| Python for agent                | Best Claude SDK, rich AI/ML ecosystem               | —      |
+| TypeScript for pipeline         | Type safety for data flow, Node async model         | —      |
+| Tool-based architecture         | Extensible — new capabilities added without changing agent logic | — |
+| Zod validation                  | Runtime safety for external data, self-documenting  | —      |
+| SQLite (dev) + Postgres (prod)  | Zero-friction local + production-grade deployed     | [001](./adr/001-persistence-strategy.md) |
+| Learning notes outside repo     | Professional signal separated from personal study   | [002](./adr/002-learning-docs-outside-repo.md) |
+
+---
+
+## Where we are going
+
+The current architecture (shown above) is **pre-persistence**. All state is in-memory
+and lost on process restart. The upgrade plan (Fase 1–9) will evolve the system toward
+the target architecture below.
+
+### Target architecture (after Fase 8)
+
+```
+┌────────────────────────────────────────────────────────────────────────────┐
+│  Browser                                                                   │
+│  + Prompt Workbench · Run history · Drag-and-drop upload · Dashboards      │
+└──────────────────────────────────┬─────────────────────────────────────────┘
+                                   │  HTTPS + CSRF + session cookie + rate-limit
+                                   ▼
+┌────────────────────────────────────────────────────────────────────────────┐
+│  FastAPI (app/)                                                            │
+│  Routers: /api/v1/{auth, runs, prompts, upload, chat, process, metrics}    │
+│  Middleware: auth · rate-limit · request-id · security headers · CORS      │
+│  Observability: structured JSON logs · /metrics (Prometheus)               │
+└──────┬─────────────────────────┬──────────────────────────┬────────────────┘
+       │                         │                          │
+       ▼                         ▼                          ▼
+┌──────────────────┐  ┌──────────────────────┐  ┌────────────────────────────┐
+│ Agent core       │  │ Persistence layer    │  │ External integrations      │
+│ + file parsing   │  │ SQLAlchemy + Alembic │  │  ┌──────────────────────┐  │
+│ + prompt cache   │  │ ┌────────┬─────────┐ │  │  │ MCP server           │  │
+│ + cost tracking  │  │ │ SQLite │Postgres │ │  │  │ (Claude Desktop)     │  │
+│                  │  │ │ (dev)  │ (prod)  │ │  │  └──────────────────────┘  │
+│                  │  │ └────────┴─────────┘ │  │  ┌──────────────────────┐  │
+│                  │  │                      │  │  │ Copilot Studio       │  │
+│                  │  │ Tables:              │  │  │ (OpenAPI manifest)   │  │
+│                  │  │  users · runs        │  │  └──────────────────────┘  │
+│                  │  │  documents · prompts │  │  ┌──────────────────────┐  │
+│                  │  │  prompt_versions     │  │  │ Generic OpenAPI      │  │
+│                  │  │  audit_log           │  │  │ (any HTTP client)    │  │
+└──────────────────┘  └──────────────────────┘  │  └──────────────────────┘  │
+                                                └────────────────────────────┘
+```
+
+---
+
+## Further reading
+
+- [ADR index](./adr/README.md) — decisions and tradeoffs
+- [SECURITY.md](../SECURITY.md) — threat model and disclosure policy
+- [CONTRIBUTING.md](../CONTRIBUTING.md) — development workflow
