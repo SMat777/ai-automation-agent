@@ -3,487 +3,547 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="AI-powered document processing: analyze structure, extract data, summarize content, and validate business documents. Built with Python, TypeScript, and Claude AI.">
-  <title>AI Automation Agent</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+  <meta name="description" content="AI Document Agent Platform — automated document processing, email triage, and knowledge-base search across healthcare, finance, legal, and customer service.">
+  <title>AI Document Agent</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
   <link rel="stylesheet" href="/static/style.css">
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 </head>
 <body>
 
-  <!-- ── Mobile drawer backdrop ─────────────────────────────────────────── -->
-  <div id="sidebar-backdrop" class="sidebar-backdrop" aria-hidden="true"></div>
+  <!-- ── Toast container ──────────────────────────────────────────────────── -->
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
 
-  <!-- ── Top bar (mobile only) ──────────────────────────────────────────── -->
-  <header class="topbar" role="banner">
-    <button
-      type="button"
-      class="topbar-menu-btn"
-      id="topbar-menu-btn"
-      aria-label="Open history"
-      aria-controls="sidebar"
-      aria-expanded="false">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M3 12h18M3 6h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-      </svg>
-    </button>
-    <span class="topbar-title">AI Automation Agent</span>
-  </header>
+  <!-- ── App shell ────────────────────────────────────────────────────────── -->
+  <div class="app-shell">
 
-  <div class="layout">
-
-    <!-- ── Run history sidebar ────────────────────────────────────────────── -->
-    <aside class="sidebar" id="sidebar" aria-label="Run history">
-      <div class="sidebar-header">
-        <div class="sidebar-title-row">
-          <h2 class="sidebar-title">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M12 8v4l3 2M12 3a9 9 0 100 18 9 9 0 000-18z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            History
-          </h2>
-          <button
-            type="button"
-            class="sidebar-close-btn"
-            id="sidebar-close-btn"
-            aria-label="Close history"
-            aria-controls="sidebar">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M6 18L18 6M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-          </button>
-        </div>
-        <div class="sidebar-filters" role="group" aria-label="Filter runs">
-          <button type="button" class="filter-chip active" data-filter="all">All</button>
-          <button type="button" class="filter-chip" data-filter="errors">Errors</button>
-          <button type="button" class="filter-chip" data-filter="today">Today</button>
-          <button type="button" class="filter-chip" data-filter="week">Week</button>
+    <!-- ── Left nav sidebar ─────────────────────────────────────────────── -->
+    <nav class="nav-sidebar" id="nav-sidebar" aria-label="Main navigation">
+      <div class="nav-brand">
+        <div class="brand-icon"><i data-lucide="bot" class="brand-lucide"></i></div>
+        <div class="brand-text">
+          <span class="brand-name">DocAgent</span>
+          <span class="brand-tag">AI Platform</span>
         </div>
       </div>
 
-      <div class="sidebar-body" id="sidebar-body" tabindex="0">
-        <!-- Runs are rendered here by app.js -->
-        <div class="sidebar-loading" id="sidebar-loading">
-          <div class="skeleton-run"></div>
-          <div class="skeleton-run"></div>
-          <div class="skeleton-run"></div>
+      <div class="nav-section">
+        <span class="nav-label">Overview</span>
+        <button class="nav-item active" data-view="dashboard" type="button">
+          <i data-lucide="layout-dashboard"></i> Dashboard
+        </button>
+      </div>
+
+      <div class="nav-section">
+        <span class="nav-label">Scenarios</span>
+        <button class="nav-item" data-view="scenario" data-scenario="clinic-email" type="button">
+          <i data-lucide="mail"></i> Clinic Email
+        </button>
+        <button class="nav-item" data-view="scenario" data-scenario="invoice-processing" type="button">
+          <i data-lucide="receipt"></i> Invoice Processing
+        </button>
+        <button class="nav-item" data-view="scenario" data-scenario="contract-review" type="button">
+          <i data-lucide="scale"></i> Contract Review
+        </button>
+        <button class="nav-item" data-view="scenario" data-scenario="support-triage" type="button">
+          <i data-lucide="headphones"></i> Support Triage
+        </button>
+      </div>
+
+      <div class="nav-section">
+        <span class="nav-label">Tools</span>
+        <button class="nav-item" data-view="process" type="button">
+          <i data-lucide="zap"></i> Process
+        </button>
+        <button class="nav-item" data-view="analyze" type="button">
+          <i data-lucide="search"></i> Analyze
+        </button>
+        <button class="nav-item" data-view="extract" type="button">
+          <i data-lucide="clipboard-list"></i> Extract
+        </button>
+        <button class="nav-item" data-view="summarize" type="button">
+          <i data-lucide="file-text"></i> Summarize
+        </button>
+        <button class="nav-item" data-view="pipeline" type="button">
+          <i data-lucide="git-branch"></i> Pipeline
+        </button>
+        <button class="nav-item" data-view="chat" type="button">
+          <i data-lucide="message-circle"></i> Chat
+        </button>
+      </div>
+
+      <div class="nav-section">
+        <span class="nav-label">Knowledge</span>
+        <button class="nav-item" data-view="upload" type="button">
+          <i data-lucide="upload"></i> Upload
+        </button>
+        <button class="nav-item" data-view="knowledge" type="button">
+          <i data-lucide="database"></i> Knowledge Base
+        </button>
+      </div>
+
+      <div class="nav-footer">
+        <button class="nav-item" data-view="about" type="button">
+          <i data-lucide="info"></i> About
+        </button>
+        <div class="nav-status">
+          <span class="status-dot" id="api-status-dot"></span>
+          <span class="status-text" id="api-status-text">Checking...</span>
         </div>
       </div>
-
-      <div class="sidebar-footer">
-        <span id="sidebar-total" class="sidebar-total">—</span>
-        <button type="button" class="sidebar-refresh" id="sidebar-refresh" aria-label="Refresh history">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M3 12a9 9 0 019-9 9 9 0 016.36 2.64L21 8M21 3v5h-5M21 12a9 9 0 01-9 9 9 9 0 01-6.36-2.64L3 16M3 21v-5h5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </button>
-      </div>
-    </aside>
-
-    <div class="app">
-
-    <!-- Hero -->
-    <header class="hero">
-      <div class="hero-badge">Open Source Tool</div>
-      <h1>AI Automation Agent</h1>
-      <p class="hero-sub">
-        <span id="hero-typed"></span><span class="typed-cursor">|</span>
-      </p>
-      <p class="hero-static">Powered by Python, TypeScript, and Claude AI</p>
-      <div id="status-bar" class="status-bar"></div>
-    </header>
-
-    <!-- Quick demo -->
-    <section class="quick-demo">
-      <h2>Try it — pick a demo</h2>
-      <div class="demo-cards">
-        <button class="demo-card" onclick="loadDemo('process-invoice')">
-          <span class="demo-icon">⚡</span>
-          <strong>Process an invoice</strong>
-          <span class="demo-desc">Full pipeline: analyze structure, extract fields, summarize — in one flow</span>
-        </button>
-        <button class="demo-card" onclick="loadDemo('analyze-job')">
-          <span class="demo-icon">🔍</span>
-          <strong>Analyze a job posting</strong>
-          <span class="demo-desc">Extract entities, structure, and key points from a real job ad</span>
-        </button>
-        <button class="demo-card" onclick="loadDemo('extract-invoice')">
-          <span class="demo-icon">📋</span>
-          <strong>Extract invoice data</strong>
-          <span class="demo-desc">Pull structured fields from an unstructured invoice</span>
-        </button>
-        <button class="demo-card" onclick="loadDemo('pipeline-github')">
-          <span class="demo-icon">🔄</span>
-          <strong>Run GitHub analysis</strong>
-          <span class="demo-desc">Fetch live repos, aggregate by language, render results</span>
-        </button>
-      </div>
-    </section>
-
-    <!-- Tool nav -->
-    <nav class="tool-nav" id="tool-nav">
-      <button class="tool-tab active" data-tool="process">
-        <span class="tab-icon">⚡</span> Process
-      </button>
-      <button class="tool-tab" data-tool="analyze">
-        <span class="tab-icon">🔍</span> Analyze
-      </button>
-      <button class="tool-tab" data-tool="extract">
-        <span class="tab-icon">📋</span> Extract
-      </button>
-      <button class="tool-tab" data-tool="summarize">
-        <span class="tab-icon">✏️</span> Summarize
-      </button>
-      <button class="tool-tab" data-tool="pipeline">
-        <span class="tab-icon">🔄</span> Pipeline
-      </button>
-      <button class="tool-tab" data-tool="chat">
-        <span class="tab-icon">💬</span> Chat
-      </button>
     </nav>
 
-    <main>
+    <!-- ── Mobile topbar ──────────────────────────────────────────────────── -->
+    <header class="topbar" role="banner">
+      <button type="button" class="topbar-menu-btn" id="topbar-menu-btn" aria-label="Toggle navigation">
+        <i data-lucide="menu"></i>
+      </button>
+      <span class="topbar-title">DocAgent</span>
+      <span class="topbar-view-name" id="topbar-view-name">Dashboard</span>
+    </header>
 
-      <!-- ── Process ── -->
-      <section id="panel-process" class="tool-panel active">
-        <div class="panel-header">
-          <div>
-            <h2>Document Processing</h2>
-            <p>End-to-end document pipeline: paste a document and the system automatically analyzes structure, extracts key data fields, and generates a summary — all in one flow.</p>
-          </div>
-          <div class="example-picker">
-            <label for="process-example">Load example:</label>
-            <select id="process-example" onchange="loadExample('process', this.value)">
-              <option value="">Choose...</option>
-              <option value="invoice">Invoice</option>
-              <option value="contract">Service contract</option>
-              <option value="meeting">Meeting notes</option>
-            </select>
-          </div>
-        </div>
-        <div class="input-group">
-          <label for="process-text">Document text</label>
-          <textarea id="process-text" rows="10" placeholder="Paste an invoice, contract, report, or meeting notes..."></textarea>
-        </div>
-        <div class="input-row">
-          <div class="input-group compact">
-            <label for="process-type">Document type</label>
-            <select id="process-type">
-              <option value="auto">Auto-detect</option>
-              <option value="invoice">Invoice</option>
-              <option value="contract">Contract</option>
-              <option value="report">Report</option>
-              <option value="meeting_notes">Meeting notes</option>
-            </select>
-          </div>
-          <button class="btn-run" id="btn-process" onclick="runProcess()" aria-label="Process document">
-            <span class="btn-label">Process Document</span>
-            <kbd class="kbd-hint">⌘↵</kbd>
-          </button>
+    <!-- ── Main content area ──────────────────────────────────────────────── -->
+    <main class="main-content" id="main-content">
+
+      <!-- ═══ DASHBOARD VIEW ═══════════════════════════════════════════════ -->
+      <section id="view-dashboard" class="view active">
+        <div class="view-header">
+          <h1>Dashboard</h1>
+          <p class="view-subtitle">Platform overview and quick actions</p>
         </div>
 
-        <!-- Step progress tracker -->
-        <div id="process-steps" class="process-steps hidden">
-          <div class="process-step" data-step="analyze">
-            <div class="step-status">
-              <span class="step-icon pending">○</span>
+        <!-- KPI cards -->
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-icon"><i data-lucide="file-text"></i></div>
+            <div class="kpi-data">
+              <span class="kpi-value" id="kpi-documents">0</span>
+              <span class="kpi-label">Documents</span>
             </div>
-            <div class="step-info">
-              <strong>Analyze</strong>
-              <span>Detect type, extract entities, identify structure</span>
-            </div>
-            <span class="step-time"></span>
           </div>
-          <div class="process-step" data-step="extract">
-            <div class="step-status">
-              <span class="step-icon pending">○</span>
+          <div class="kpi-card">
+            <div class="kpi-icon"><i data-lucide="activity"></i></div>
+            <div class="kpi-data">
+              <span class="kpi-value" id="kpi-runs-today">0</span>
+              <span class="kpi-label">Runs Today</span>
             </div>
-            <div class="step-info">
-              <strong>Extract</strong>
-              <span>Pull structured data fields from document</span>
-            </div>
-            <span class="step-time"></span>
           </div>
-          <div class="process-step" data-step="summarize">
-            <div class="step-status">
-              <span class="step-icon pending">○</span>
+          <div class="kpi-card">
+            <div class="kpi-icon"><i data-lucide="clock"></i></div>
+            <div class="kpi-data">
+              <span class="kpi-value" id="kpi-avg-latency">0ms</span>
+              <span class="kpi-label">Avg Latency</span>
             </div>
-            <div class="step-info">
-              <strong>Summarize</strong>
-              <span>Generate concise summary of key information</span>
-            </div>
-            <span class="step-time"></span>
           </div>
-          <div class="process-step" data-step="validate">
-            <div class="step-status">
-              <span class="step-icon pending">○</span>
+          <div class="kpi-card">
+            <div class="kpi-icon"><i data-lucide="dollar-sign"></i></div>
+            <div class="kpi-data">
+              <span class="kpi-value" id="kpi-total-cost">$0.00</span>
+              <span class="kpi-label">Total Cost</span>
             </div>
-            <div class="step-info">
-              <strong>Validate</strong>
-              <span>Check data consistency and flag potential issues</span>
-            </div>
-            <span class="step-time"></span>
+          </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="chart-grid">
+          <div class="chart-card">
+            <h3>Runs (Last 7 Days)</h3>
+            <canvas id="chart-runs" height="200"></canvas>
+          </div>
+          <div class="chart-card">
+            <h3>Usage by Tool</h3>
+            <canvas id="chart-tools" height="200"></canvas>
+          </div>
+        </div>
+
+        <!-- Scenario quick-start cards -->
+        <div class="scenario-section">
+          <h2>Quick Start</h2>
+          <p class="section-subtitle">Choose a scenario to see the agent in action</p>
+          <div class="scenario-grid" id="scenario-grid">
+            <!-- Populated by JS from /api/scenarios -->
           </div>
         </div>
       </section>
 
-      <!-- ── Analyze ── -->
-      <section id="panel-analyze" class="tool-panel">
-        <div class="panel-header">
-          <div>
-            <h2>Document Analysis</h2>
-            <p>Detects document type, extracts emails, dates, URLs, organizations, heading structure, and key points. Works on any text — emails, reports, markdown, tables.</p>
-          </div>
-          <div class="example-picker">
-            <label for="analyze-example">Load example:</label>
-            <select id="analyze-example" onchange="loadExample('analyze', this.value)">
-              <option value="">Choose...</option>
-              <option value="job-posting">Job posting</option>
-              <option value="email">Business email</option>
-              <option value="report">Technical report</option>
-            </select>
-          </div>
-        </div>
-        <div class="input-group">
-          <label for="analyze-text">Document text</label>
-          <textarea id="analyze-text" rows="10" placeholder="Paste any document here..."></textarea>
-        </div>
-        <div class="input-row">
-          <div class="input-group compact">
-            <label for="analyze-focus">Focus area</label>
-            <select id="analyze-focus">
-              <option value="general">General</option>
-              <option value="financial">Financial</option>
-              <option value="technical">Technical</option>
-              <option value="organizational">Organizational</option>
-            </select>
-          </div>
-          <button class="btn-run" id="btn-analyze" onclick="runAnalyze()" aria-label="Run analysis">
-            <span class="btn-label">Run Analysis</span>
-            <kbd class="kbd-hint">⌘↵</kbd>
+      <!-- ═══ SCENARIO VIEW ════════════════════════════════════════════════ -->
+      <section id="view-scenario" class="view">
+        <div class="view-header">
+          <button class="back-btn" onclick="navigateTo('dashboard')" type="button">
+            <i data-lucide="arrow-left"></i> Back
           </button>
+          <h1 id="scenario-title">Scenario</h1>
+          <span class="industry-badge" id="scenario-badge"></span>
+        </div>
+        <p id="scenario-description" class="view-subtitle"></p>
+
+        <div class="scenario-workspace">
+          <div class="scenario-input-area">
+            <div class="input-group">
+              <label for="scenario-text">Input</label>
+              <textarea id="scenario-text" rows="12" placeholder="Paste or type your input here..."></textarea>
+            </div>
+            <div class="scenario-actions">
+              <button class="btn-run" id="btn-scenario-run" onclick="runScenario()" type="button">
+                <i data-lucide="play"></i>
+                <span class="btn-label">Run Agent</span>
+                <kbd class="kbd-hint">⌘↵</kbd>
+              </button>
+              <button class="btn-secondary" id="btn-scenario-demo" onclick="loadScenarioDemo()" type="button">
+                <i data-lucide="sparkles"></i> Load Demo
+              </button>
+            </div>
+          </div>
+          <div class="scenario-output-area" id="scenario-output">
+            <div class="empty-state">
+              <i data-lucide="bot" class="empty-icon"></i>
+              <p>Run the agent to see results here</p>
+              <div class="suggested-prompts" id="suggested-prompts"></div>
+            </div>
+          </div>
         </div>
       </section>
 
-      <!-- ── Extract ── -->
-      <section id="panel-extract" class="tool-panel">
-        <div class="panel-header">
-          <div>
-            <h2>Data Extraction</h2>
-            <p>Pulls structured key-value pairs from unstructured text. Supports three strategies: key-value parsing, markdown table extraction, and list parsing. Auto mode tries all three.</p>
-          </div>
-          <div class="example-picker">
-            <label for="extract-example">Load example:</label>
-            <select id="extract-example" onchange="loadExample('extract', this.value)">
-              <option value="">Choose...</option>
-              <option value="invoice">Invoice</option>
-              <option value="contact">Contact card</option>
-              <option value="table">Markdown table</option>
-            </select>
-          </div>
+      <!-- ═══ PROCESS VIEW ═════════════════════════════════════════════════ -->
+      <section id="view-process" class="view">
+        <div class="view-header">
+          <h1><i data-lucide="zap"></i> Document Processing</h1>
+          <p class="view-subtitle">End-to-end pipeline: analyze → extract → summarize → validate</p>
         </div>
-        <div class="input-group">
-          <label for="extract-text">Source text</label>
-          <textarea id="extract-text" rows="10" placeholder="Paste text containing data to extract..."></textarea>
-        </div>
-        <div class="input-row">
+        <div class="panel-content">
           <div class="input-group">
-            <label for="extract-fields">Fields to extract <span class="hint">(comma-separated)</span></label>
-            <input type="text" id="extract-fields" placeholder="e.g. Company, Amount, Date">
+            <div class="input-top-row">
+              <label for="process-text">Document text</label>
+              <div class="example-picker">
+                <label for="process-example">Example:</label>
+                <select id="process-example" onchange="loadExample('process', this.value)">
+                  <option value="">Choose...</option>
+                  <option value="invoice">Invoice</option>
+                  <option value="contract">Service contract</option>
+                  <option value="meeting">Meeting notes</option>
+                </select>
+              </div>
+            </div>
+            <textarea id="process-text" rows="10" placeholder="Paste an invoice, contract, report, or meeting notes..."></textarea>
           </div>
-          <div class="input-group compact">
-            <label for="extract-strategy">Strategy</label>
-            <select id="extract-strategy">
-              <option value="auto">Auto (recommended)</option>
-              <option value="key_value">Key-Value</option>
-              <option value="table">Table</option>
-              <option value="list">List</option>
-            </select>
+          <div class="input-row">
+            <div class="input-group compact">
+              <label for="process-type">Type</label>
+              <select id="process-type">
+                <option value="auto">Auto-detect</option>
+                <option value="invoice">Invoice</option>
+                <option value="contract">Contract</option>
+                <option value="report">Report</option>
+                <option value="meeting_notes">Meeting notes</option>
+              </select>
+            </div>
+            <button class="btn-run" id="btn-process" onclick="runProcess()" type="button">
+              <span class="btn-label">Process Document</span>
+              <kbd class="kbd-hint">⌘↵</kbd>
+            </button>
           </div>
-          <button class="btn-run" id="btn-extract" onclick="runExtract()" aria-label="Extract data">
-            <span class="btn-label">Extract Data</span>
+          <div id="process-steps" class="process-steps hidden">
+            <div class="process-step" data-step="analyze"><div class="step-status"><span class="step-icon pending">○</span></div><div class="step-info"><strong>Analyze</strong><span>Detect type, extract entities, identify structure</span></div><span class="step-time"></span></div>
+            <div class="process-step" data-step="extract"><div class="step-status"><span class="step-icon pending">○</span></div><div class="step-info"><strong>Extract</strong><span>Pull structured data fields from document</span></div><span class="step-time"></span></div>
+            <div class="process-step" data-step="summarize"><div class="step-status"><span class="step-icon pending">○</span></div><div class="step-info"><strong>Summarize</strong><span>Generate concise summary of key information</span></div><span class="step-time"></span></div>
+            <div class="process-step" data-step="validate"><div class="step-status"><span class="step-icon pending">○</span></div><div class="step-info"><strong>Validate</strong><span>Check data consistency and business rules</span></div><span class="step-time"></span></div>
+          </div>
+          <div id="process-result" class="result-area"></div>
+        </div>
+      </section>
+
+      <!-- ═══ ANALYZE VIEW ═════════════════════════════════════════════════ -->
+      <section id="view-analyze" class="view">
+        <div class="view-header">
+          <h1><i data-lucide="search"></i> Document Analysis</h1>
+          <p class="view-subtitle">Detect document type, extract entities and structural elements</p>
+        </div>
+        <div class="panel-content">
+          <div class="input-group">
+            <div class="input-top-row">
+              <label for="analyze-text">Document text</label>
+              <div class="example-picker">
+                <label for="analyze-example">Example:</label>
+                <select id="analyze-example" onchange="loadExample('analyze', this.value)">
+                  <option value="">Choose...</option>
+                  <option value="invoice">Invoice</option>
+                  <option value="job">Job posting</option>
+                  <option value="email">Business email</option>
+                </select>
+              </div>
+            </div>
+            <textarea id="analyze-text" rows="10" placeholder="Paste any document to analyze..."></textarea>
+          </div>
+          <div class="input-row">
+            <div class="input-group compact">
+              <label for="analyze-focus">Focus</label>
+              <select id="analyze-focus">
+                <option value="general">General</option>
+                <option value="financial">Financial</option>
+                <option value="technical">Technical</option>
+                <option value="organizational">Organizational</option>
+              </select>
+            </div>
+            <button class="btn-run" id="btn-analyze" onclick="runAnalyze()" type="button">
+              <span class="btn-label">Analyze</span>
+              <kbd class="kbd-hint">⌘↵</kbd>
+            </button>
+          </div>
+          <div id="analyze-result" class="result-area"></div>
+        </div>
+      </section>
+
+      <!-- ═══ EXTRACT VIEW ═════════════════════════════════════════════════ -->
+      <section id="view-extract" class="view">
+        <div class="view-header">
+          <h1><i data-lucide="clipboard-list"></i> Data Extraction</h1>
+          <p class="view-subtitle">Pull structured key-value data from unstructured text</p>
+        </div>
+        <div class="panel-content">
+          <div class="input-group">
+            <div class="input-top-row">
+              <label for="extract-text">Document text</label>
+              <div class="example-picker">
+                <label for="extract-example">Example:</label>
+                <select id="extract-example" onchange="loadExample('extract', this.value)">
+                  <option value="">Choose...</option>
+                  <option value="invoice">Invoice</option>
+                  <option value="resume">Resume</option>
+                  <option value="product">Product listing</option>
+                </select>
+              </div>
+            </div>
+            <textarea id="extract-text" rows="10" placeholder="Paste text to extract data from..."></textarea>
+          </div>
+          <div class="input-row">
+            <div class="input-group compact">
+              <label for="extract-fields">Fields (comma-separated)</label>
+              <input type="text" id="extract-fields" placeholder="e.g. name, date, amount">
+            </div>
+            <div class="input-group compact">
+              <label for="extract-strategy">Strategy</label>
+              <select id="extract-strategy">
+                <option value="auto">Auto</option>
+                <option value="key_value">Key-Value</option>
+                <option value="table">Table</option>
+                <option value="list">List</option>
+              </select>
+            </div>
+            <button class="btn-run" id="btn-extract" onclick="runExtract()" type="button">
+              <span class="btn-label">Extract</span>
+              <kbd class="kbd-hint">⌘↵</kbd>
+            </button>
+          </div>
+          <div id="extract-result" class="result-area"></div>
+        </div>
+      </section>
+
+      <!-- ═══ SUMMARIZE VIEW ═══════════════════════════════════════════════ -->
+      <section id="view-summarize" class="view">
+        <div class="view-header">
+          <h1><i data-lucide="file-text"></i> Summarization</h1>
+          <p class="view-subtitle">Condense long text into key takeaways</p>
+        </div>
+        <div class="panel-content">
+          <div class="input-group">
+            <div class="input-top-row">
+              <label for="summarize-text">Text to summarize</label>
+              <div class="example-picker">
+                <label for="summarize-example">Example:</label>
+                <select id="summarize-example" onchange="loadExample('summarize', this.value)">
+                  <option value="">Choose...</option>
+                  <option value="business">Business report</option>
+                  <option value="technical">Technical doc</option>
+                  <option value="article">News article</option>
+                </select>
+              </div>
+            </div>
+            <textarea id="summarize-text" rows="10" placeholder="Paste long text to summarize..."></textarea>
+          </div>
+          <div class="input-row">
+            <div class="input-group compact">
+              <label for="summarize-format">Format</label>
+              <select id="summarize-format">
+                <option value="bullets">Bullet points</option>
+                <option value="paragraph">Paragraph</option>
+              </select>
+            </div>
+            <div class="input-group compact">
+              <label for="summarize-points">Max points</label>
+              <input type="number" id="summarize-points" value="5" min="1" max="20">
+            </div>
+            <button class="btn-run" id="btn-summarize" onclick="runSummarize()" type="button">
+              <span class="btn-label">Summarize</span>
+              <kbd class="kbd-hint">⌘↵</kbd>
+            </button>
+          </div>
+          <div id="summarize-result" class="result-area"></div>
+        </div>
+      </section>
+
+      <!-- ═══ PIPELINE VIEW ════════════════════════════════════════════════ -->
+      <section id="view-pipeline" class="view">
+        <div class="view-header">
+          <h1><i data-lucide="git-branch"></i> Data Pipeline</h1>
+          <p class="view-subtitle">TypeScript automation: Fetch → Clean → Filter → Aggregate → Format</p>
+        </div>
+        <div class="panel-content">
+          <div class="pipeline-cards">
+            <button class="pipeline-card" id="pipe-posts" onclick="selectPipeline('posts')" type="button">
+              <i data-lucide="file-text"></i>
+              <div><strong>Post Analysis</strong><span>Fetch posts, compute word counts, aggregate by user</span></div>
+            </button>
+            <button class="pipeline-card selected" id="pipe-github" onclick="selectPipeline('github')" type="button">
+              <i data-lucide="github"></i>
+              <div><strong>GitHub Repos</strong><span>Fetch repos, group by language, count stars</span></div>
+            </button>
+          </div>
+          <div class="pipeline-steps">
+            <div class="step-viz">
+              <div class="step-node">Fetch</div><div class="step-arrow"><i data-lucide="arrow-right"></i></div>
+              <div class="step-node">Clean</div><div class="step-arrow"><i data-lucide="arrow-right"></i></div>
+              <div class="step-node">Filter</div><div class="step-arrow"><i data-lucide="arrow-right"></i></div>
+              <div class="step-node">Aggregate</div><div class="step-arrow"><i data-lucide="arrow-right"></i></div>
+              <div class="step-node">Format</div>
+            </div>
+          </div>
+          <button class="btn-run btn-run-wide" id="btn-pipeline" onclick="runPipeline()" type="button">
+            <span class="btn-label">Run Pipeline</span>
             <kbd class="kbd-hint">⌘↵</kbd>
           </button>
+          <div id="pipeline-result" class="result-area"></div>
         </div>
       </section>
 
-      <!-- ── Summarize ── -->
-      <section id="panel-summarize" class="tool-panel">
-        <div class="panel-header">
-          <div>
-            <h2>Text Summarization</h2>
-            <p>Condenses long text into key takeaways. Uses Claude AI when an API key is configured, otherwise falls back to extractive summarization — both are fully functional.</p>
-          </div>
-          <div class="example-picker">
-            <label for="summarize-example">Load example:</label>
-            <select id="summarize-example" onchange="loadExample('summarize', this.value)">
-              <option value="">Choose...</option>
-              <option value="business">Business report</option>
-              <option value="technical">Technical documentation</option>
-              <option value="article">News article</option>
-            </select>
+      <!-- ═══ CHAT VIEW ════════════════════════════════════════════════════ -->
+      <section id="view-chat" class="view">
+        <div class="view-header">
+          <h1><i data-lucide="message-circle"></i> Agent Chat</h1>
+          <div class="view-header-right">
+            <div id="chat-mode-badge" class="chat-mode-badge"></div>
           </div>
         </div>
-        <div class="input-group">
-          <label for="summarize-text">Text to summarize</label>
-          <textarea id="summarize-text" rows="10" placeholder="Paste a long document to summarize..."></textarea>
-        </div>
-        <div class="input-row">
-          <div class="input-group compact">
-            <label for="summarize-format">Format</label>
-            <select id="summarize-format">
-              <option value="bullets">Bullet points</option>
-              <option value="paragraph">Paragraph</option>
-            </select>
-          </div>
-          <div class="input-group compact">
-            <label for="summarize-points">Max points</label>
-            <input type="number" id="summarize-points" value="5" min="1" max="20">
-          </div>
-          <button class="btn-run" id="btn-summarize" onclick="runSummarize()" aria-label="Summarize text">
-            <span class="btn-label">Summarize</span>
-            <kbd class="kbd-hint">⌘↵</kbd>
-          </button>
-        </div>
-      </section>
-
-      <!-- ── Pipeline ── -->
-      <section id="panel-pipeline" class="tool-panel">
-        <div class="panel-header">
-          <div>
-            <h2>Data Pipeline</h2>
-            <p>Runs a full TypeScript automation workflow: Fetch data from a live API → Clean → Filter → Aggregate → Format. Each step is composable and type-safe via Zod validation.</p>
-          </div>
-        </div>
-        <div class="pipeline-cards">
-          <button class="pipeline-card" id="pipe-posts" onclick="selectPipeline('posts')">
-            <span class="pipe-icon">📝</span>
-            <div>
-              <strong>Post Analysis</strong>
-              <span>Fetch user posts from JSONPlaceholder, compute word counts, aggregate by user</span>
-            </div>
-          </button>
-          <button class="pipeline-card selected" id="pipe-github" onclick="selectPipeline('github')">
-            <span class="pipe-icon">🐙</span>
-            <div>
-              <strong>GitHub Repos</strong>
-              <span>Fetch real repos from GitHub API, group by language, count stars</span>
-            </div>
-          </button>
-        </div>
-        <div class="pipeline-steps">
-          <div class="step-viz">
-            <div class="step-node">Fetch</div>
-            <div class="step-arrow">→</div>
-            <div class="step-node">Clean</div>
-            <div class="step-arrow">→</div>
-            <div class="step-node">Filter</div>
-            <div class="step-arrow">→</div>
-            <div class="step-node">Aggregate</div>
-            <div class="step-arrow">→</div>
-            <div class="step-node">Format</div>
-          </div>
-        </div>
-        <button class="btn-run btn-run-wide" id="btn-pipeline" onclick="runPipeline()" aria-label="Run pipeline">
-          <span class="btn-label">Run Pipeline</span>
-          <kbd class="kbd-hint">⌘↵</kbd>
-        </button>
-      </section>
-
-      <!-- ── Chat ── -->
-      <section id="panel-chat" class="tool-panel">
-        <div class="panel-header">
-          <div>
-            <h2>Agent Chat</h2>
-            <p>Talk to the AI agent in natural language. It reasons about your request, selects tools, and builds a response — showing its thinking process in real time.</p>
-          </div>
-          <div id="chat-mode-badge" class="chat-mode-badge"></div>
-        </div>
-
-        <div class="chat-container" id="chat-container">
-          <div class="chat-messages" id="chat-messages" role="log" aria-live="polite">
+        <div class="chat-container">
+          <div class="chat-messages" id="chat-messages" role="log" aria-label="Chat messages">
             <div class="chat-welcome">
-              <span class="chat-welcome-icon">🤖</span>
-              <p>Hi! I'm an AI automation agent. Ask me to analyze a document, extract data, or explain what I can do.</p>
-              <div class="chat-suggestions">
-                <button class="chat-suggestion" onclick="sendChatSuggestion('What can you do?')">What can you do?</button>
-                <button class="chat-suggestion" onclick="sendChatSuggestion('Analyze an invoice for me')">Analyze an invoice</button>
-                <button class="chat-suggestion" onclick="sendChatSuggestion('How does the document processing pipeline work?')">How does the pipeline work?</button>
+              <i data-lucide="bot" class="welcome-icon"></i>
+              <p>Ask me anything about your documents. I can analyze, extract data, search the knowledge base, and process emails.</p>
+              <div class="chat-suggestions" id="chat-suggestions">
+                <button class="suggestion-btn" onclick="sendSuggestion(this)" type="button">Analyze this invoice</button>
+                <button class="suggestion-btn" onclick="sendSuggestion(this)" type="button">Search knowledge base for contracts</button>
+                <button class="suggestion-btn" onclick="sendSuggestion(this)" type="button">Process a clinic email</button>
               </div>
             </div>
           </div>
-
-          <form class="chat-input-area" onsubmit="handleChatSubmit(event)">
-            <label for="chat-input" class="sr-only">Message</label>
-            <textarea id="chat-input" class="chat-input" rows="1" placeholder="Ask the agent anything..." aria-label="Chat message"></textarea>
-            <button type="submit" class="chat-send-btn" id="chat-send-btn" aria-label="Send message">
-              <span class="send-icon">↑</span>
+          <div class="chat-input-area">
+            <textarea id="chat-input" rows="1" placeholder="Type your message..." aria-label="Chat message"></textarea>
+            <button class="chat-send-btn" id="chat-send-btn" onclick="sendChat()" type="button" aria-label="Send message">
+              <i data-lucide="send"></i>
             </button>
-          </form>
+          </div>
         </div>
       </section>
 
-      <!-- ── Loading overlay ── -->
-      <div id="loading-overlay" class="loading-overlay hidden">
-        <div class="loading-content">
-          <div class="loading-spinner"></div>
-          <p id="loading-message">Processing...</p>
+      <!-- ═══ UPLOAD VIEW ══════════════════════════════════════════════════ -->
+      <section id="view-upload" class="view">
+        <div class="view-header">
+          <h1><i data-lucide="upload"></i> Upload Documents</h1>
+          <p class="view-subtitle">Add documents to the knowledge base for RAG-powered search</p>
         </div>
-      </div>
+        <div class="panel-content">
+          <div class="upload-zone" id="upload-zone">
+            <i data-lucide="upload-cloud" class="upload-icon"></i>
+            <p class="upload-text">Drag & drop files here, or <span class="upload-browse">browse</span></p>
+            <p class="upload-hint">Supports: PDF, DOCX, EML, TXT, MD</p>
+            <input type="file" id="upload-input" accept=".pdf,.docx,.eml,.txt,.md" hidden>
+          </div>
+          <div id="upload-progress" class="upload-progress hidden">
+            <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+            <span class="progress-text" id="progress-text">Uploading...</span>
+          </div>
+          <div id="upload-result" class="result-area"></div>
+        </div>
+      </section>
 
-      <!-- ── Result area ── -->
-      <div id="result-area" class="result-area hidden">
-        <div class="result-header">
-          <div>
-            <h3 id="result-title">Result</h3>
-            <p id="result-subtitle" class="result-subtitle"></p>
-          </div>
-          <div class="result-badges">
-            <span class="result-time" id="result-time"></span>
+      <!-- ═══ KNOWLEDGE BASE VIEW ══════════════════════════════════════════ -->
+      <section id="view-knowledge" class="view">
+        <div class="view-header">
+          <h1><i data-lucide="database"></i> Knowledge Base</h1>
+          <p class="view-subtitle">Documents available for RAG search</p>
+        </div>
+        <div class="panel-content">
+          <div id="knowledge-list" class="knowledge-list">
+            <div class="empty-state">
+              <i data-lucide="folder-open" class="empty-icon"></i>
+              <p>No documents uploaded yet</p>
+              <button class="btn-secondary" onclick="navigateTo('upload')" type="button">
+                <i data-lucide="upload"></i> Upload your first document
+              </button>
+            </div>
           </div>
         </div>
-        <div id="result-content" class="result-content"></div>
-      </div>
+      </section>
+
+      <!-- ═══ ABOUT VIEW ═══════════════════════════════════════════════════ -->
+      <section id="view-about" class="view">
+        <div class="view-header">
+          <h1><i data-lucide="info"></i> About This Platform</h1>
+        </div>
+        <div class="about-content">
+          <div class="about-hero">
+            <h2>AI Document Agent Platform</h2>
+            <p>Automated document processing and email triage with AI agents, RAG-powered knowledge base, and full observability — across 4 industries.</p>
+          </div>
+          <div class="tech-badges">
+            <span class="tech-badge">Python</span>
+            <span class="tech-badge">FastAPI</span>
+            <span class="tech-badge">Claude AI</span>
+            <span class="tech-badge">ChromaDB</span>
+            <span class="tech-badge">TypeScript</span>
+            <span class="tech-badge">Zod</span>
+            <span class="tech-badge">TDD</span>
+            <span class="tech-badge">Docker</span>
+          </div>
+          <div class="about-features">
+            <div class="feature-card">
+              <i data-lucide="brain"></i>
+              <h3>ReAct Agent</h3>
+              <p>Reasoning + Acting loop with 8 tools. The agent thinks, acts, observes, and iterates until it has a complete answer.</p>
+            </div>
+            <div class="feature-card">
+              <i data-lucide="database"></i>
+              <h3>RAG Pipeline</h3>
+              <p>Upload documents → chunk → embed → store in ChromaDB. The agent searches your knowledge base to answer with context and source citations.</p>
+            </div>
+            <div class="feature-card">
+              <i data-lucide="mail"></i>
+              <h3>Email Agent</h3>
+              <p>Classify incoming emails, look up order status, and draft professional replies — exactly what a production customer service agent does.</p>
+            </div>
+            <div class="feature-card">
+              <i data-lucide="bar-chart-3"></i>
+              <h3>Observability</h3>
+              <p>Every run is logged with timing, tokens, and cost. The dashboard shows what the platform costs to operate — because production needs metrics.</p>
+            </div>
+          </div>
+          <div class="about-stats" id="about-stats">
+            <div class="stat-item"><strong id="about-test-count">156+</strong><span>Tests Passing</span></div>
+            <div class="stat-item"><strong>8</strong><span>Agent Tools</span></div>
+            <div class="stat-item"><strong>4</strong><span>Industry Scenarios</span></div>
+            <div class="stat-item"><strong>TDD</strong><span>Workflow</span></div>
+          </div>
+        </div>
+      </section>
 
     </main>
-
-    <!-- How it works -->
-    <section class="how-it-works">
-      <h2>How it works</h2>
-      <div class="architecture-cards">
-        <div class="arch-card">
-          <div class="arch-icon">🐍</div>
-          <h4>Python Agent</h4>
-          <p>ReAct decision loop with Claude API. Reasons about tasks, selects tools, synthesizes results.</p>
-        </div>
-        <div class="arch-card">
-          <div class="arch-icon">📘</div>
-          <h4>TypeScript Pipeline</h4>
-          <p>Composable data transformations with Zod validation. Fetch, clean, filter, aggregate, format.</p>
-        </div>
-        <div class="arch-card">
-          <div class="arch-icon">⚡</div>
-          <h4>FastAPI Server</h4>
-          <p>REST API with Pydantic validation. Serves the web UI and exposes all tools as endpoints.</p>
-        </div>
-        <div class="arch-card">
-          <div class="arch-icon">🔗</div>
-          <h4>Integration</h4>
-          <p>Agent triggers pipelines at runtime. Pipeline results feed back for AI analysis and reporting.</p>
-        </div>
-      </div>
-    </section>
-
-    <footer>
-      <p>Built by <a href="https://github.com/SMat777" target="_blank" rel="noopener noreferrer">Simon Mathiasen</a> · <a href="https://github.com/SMat777/ai-automation-agent" target="_blank" rel="noopener noreferrer">View source on GitHub</a></p>
-    </footer>
   </div>
-  </div><!-- /.layout -->
 
-  <!-- Toast container -->
-  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+  <!-- ── Mobile nav backdrop ──────────────────────────────────────────────── -->
+  <div id="nav-backdrop" class="nav-backdrop" aria-hidden="true"></div>
 
+  <!-- ── Scripts ──────────────────────────────────────────────────────────── -->
   <script src="/static/examples.js"></script>
   <script src="/static/app.js"></script>
-  <script src="/static/sidebar.js"></script>
 </body>
 </html>
