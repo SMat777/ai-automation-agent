@@ -9,7 +9,6 @@ The main interface for the RAG pipeline:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
 
 from app.services.rag.chunker import chunk_text
 from app.services.rag.embedder import embed_single, embed_texts

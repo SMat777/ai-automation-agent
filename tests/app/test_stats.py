@@ -1,6 +1,6 @@
 """Tests for the stats endpoint."""
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient

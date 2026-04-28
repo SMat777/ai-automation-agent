@@ -1,6 +1,5 @@
 """Tests for document text extractors."""
 
-import pytest
 
 from app.services.extractors.text import extract_text
 
