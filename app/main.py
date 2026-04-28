@@ -22,6 +22,7 @@ from app.routers import (
     process,
     runs,
     scenarios,
+    stats,
     summarize,
     upload,
 )
@@ -57,6 +58,7 @@ app.include_router(runs.router, prefix=API_PREFIX)
 app.include_router(upload.router)  # prefix built-in
 app.include_router(knowledge.router)  # prefix built-in
 app.include_router(scenarios.router)  # prefix built-in
+app.include_router(stats.router)  # prefix built-in
 
 
 # ── Frontend ─────────────────────────────────────────────────────────────────
