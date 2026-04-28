@@ -18,7 +18,10 @@ class VectorStore:
 
     def __init__(self, persist_dir: str = "./chroma_data") -> None:
         self._client = chromadb.PersistentClient(path=persist_dir)
-        self._collection = self._client.get_or_create_collection(
+        # Chroma's runtime return types are broader than its static stubs.
+        # Keep this boundary as Any to avoid leaking third-party typing noise
+        # into our application code.
+        self._collection: Any = self._client.get_or_create_collection(
             name=_COLLECTION_NAME,
             metadata={"hnsw:space": "cosine"},
         )
