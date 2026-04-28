@@ -48,3 +48,5 @@ NEXT-STEPS.md
 *.db
 *.sqlite
 *.sqlite3
+chroma_data/
+NEXT-SESSION.md

@@ -1,965 +1,637 @@
-// ── Typing hero effect ──────────────────────────────────────────────────────
+// ── Navigation ──────────────────────────────────────────────────────────────
 
-const HERO_PHRASES = [
-  'Process invoices and extract structured data',
-  'Analyze documents and detect key entities',
-  'Summarize reports into actionable insights',
-  'Run automated data pipelines on live APIs',
-  'Validate business documents for ERP import',
-];
+let currentView = 'dashboard';
+let currentScenario = null;
 
-(function initTypingHero() {
-  const el = document.getElementById('hero-typed');
-  if (!el) return;
-  let phraseIndex = 0;
-  let charIndex = 0;
-  let deleting = false;
-  let pauseCounter = 0;
+function navigateTo(view, options = {}) {
+  // Hide all views
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
 
-  function tick() {
-    const phrase = HERO_PHRASES[phraseIndex];
+  // Show target view
+  const target = document.getElementById(`view-${view}`);
+  if (target) target.classList.add('active');
 
-    if (!deleting) {
-      el.textContent = phrase.slice(0, charIndex + 1);
-      charIndex++;
-      if (charIndex === phrase.length) {
-        pauseCounter = 0;
-        deleting = true;
-        setTimeout(tick, 2000);
-        return;
-      }
-      setTimeout(tick, 45);
+  // Update nav
+  document.querySelectorAll('.nav-item').forEach(item => {
+    const itemView = item.dataset.view;
+    const itemScenario = item.dataset.scenario;
+    if (view === 'scenario' && itemScenario === options.scenario) {
+      item.classList.add('active');
+    } else if (itemView === view && view !== 'scenario') {
+      item.classList.add('active');
     } else {
-      el.textContent = phrase.slice(0, charIndex);
-      charIndex--;
-      if (charIndex === 0) {
-        deleting = false;
-        phraseIndex = (phraseIndex + 1) % HERO_PHRASES.length;
-        setTimeout(tick, 300);
-        return;
-      }
-      setTimeout(tick, 25);
+      item.classList.remove('active');
     }
-  }
+  });
 
-  tick();
-})();
+  // Update topbar
+  const viewName = document.getElementById('topbar-view-name');
+  if (viewName) viewName.textContent = target?.querySelector('h1')?.textContent || view;
 
-// ── Toast notifications ─────────────────────────────────────────────────────
+  currentView = view;
+
+  // Close mobile nav
+  document.getElementById('nav-sidebar')?.classList.remove('open');
+  document.getElementById('nav-backdrop')?.classList.remove('active');
+
+  // View-specific init
+  if (view === 'dashboard') loadDashboard();
+  if (view === 'knowledge') loadKnowledgeBase();
+  if (view === 'scenario' && options.scenario) loadScenario(options.scenario);
+
+  // Re-init Lucide icons for new view
+  if (window.lucide) lucide.createIcons();
+}
+
+// Nav item clicks
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => {
+    const view = item.dataset.view;
+    const scenario = item.dataset.scenario;
+    if (view === 'scenario' && scenario) {
+      navigateTo('scenario', { scenario });
+    } else {
+      navigateTo(view);
+    }
+  });
+});
+
+// Mobile nav toggle
+document.getElementById('topbar-menu-btn')?.addEventListener('click', () => {
+  document.getElementById('nav-sidebar')?.classList.toggle('open');
+  document.getElementById('nav-backdrop')?.classList.toggle('active');
+});
+document.getElementById('nav-backdrop')?.addEventListener('click', () => {
+  document.getElementById('nav-sidebar')?.classList.remove('open');
+  document.getElementById('nav-backdrop')?.classList.remove('active');
+});
+
+// ── Toast ────────────────────────────────────────────────────────────────────
 
 function showToast(message, type = 'info') {
   const container = document.getElementById('toast-container');
   const toast = document.createElement('div');
-  toast.className = `toast toast-${type}`;
-
-  const icons = { success: '✓', error: '✗', info: 'ℹ' };
-  toast.innerHTML = `<span class="toast-icon" aria-hidden="true">${icons[type] || icons.info}</span><span class="toast-text">${message}</span>`;
-
+  toast.className = `toast ${type}`;
+  toast.textContent = message;
   container.appendChild(toast);
-
-  // Trigger animation
-  requestAnimationFrame(() => toast.classList.add('visible'));
-
-  setTimeout(() => {
-    toast.classList.remove('visible');
-    toast.addEventListener('transitionend', () => toast.remove());
-  }, 3000);
+  setTimeout(() => toast.remove(), 4000);
 }
 
-// ── Keyboard shortcuts ──────────────────────────────────────────────────────
-
-document.addEventListener('keydown', (e) => {
-  // Cmd/Ctrl + Enter → run active tool
-  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-    e.preventDefault();
-    const activePanel = document.querySelector('.tool-panel.active');
-    if (!activePanel) return;
-
-    const toolId = activePanel.id.replace('panel-', '');
-    if (toolId === 'chat') {
-      handleChatSubmit(e);
-      return;
-    }
-
-    const runners = {
-      process: runProcess,
-      analyze: runAnalyze,
-      extract: runExtract,
-      summarize: runSummarize,
-      pipeline: runPipeline,
-    };
-
-    if (runners[toolId]) runners[toolId]();
-  }
-
-  // Number keys 1-5 to switch tabs (when not in a text input)
-  if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
-  const tabKeys = { '1': 'process', '2': 'analyze', '3': 'extract', '4': 'summarize', '5': 'pipeline', '6': 'chat' };
-  if (tabKeys[e.key]) {
-    e.preventDefault();
-    switchToTool(tabKeys[e.key]);
-  }
-});
-
-// ── Tab navigation ──────────────────────────────────────────────────────────
-
-function switchToTool(toolId) {
-  // Deactivate all tabs + panels
-  document.querySelectorAll('.tool-tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.tool-panel').forEach(p => p.classList.remove('active'));
-
-  // Activate the chosen tab + panel
-  const tab = document.querySelector(`.tool-tab[data-tool="${toolId}"]`);
-  const panel = document.getElementById(`panel-${toolId}`);
-  if (tab) tab.classList.add('active');
-  if (panel) panel.classList.add('active');
-}
-
-document.querySelectorAll('.tool-tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    switchToTool(tab.dataset.tool);
-  });
-});
-
-// ── Pipeline selection ──────────────────────────────────────────────────────
-
-let selectedPipeline = 'github';
-
-function selectPipeline(name) {
-  selectedPipeline = name;
-  document.querySelectorAll('.pipeline-card').forEach(c => c.classList.remove('selected'));
-  document.getElementById(`pipe-${name}`).classList.add('selected');
-}
-
-// ── Health check ────────────────────────────────────────────────────────────
+// ── API Health Check ─────────────────────────────────────────────────────────
 
 async function checkHealth() {
-  const bar = document.getElementById('status-bar');
+  const dot = document.getElementById('api-status-dot');
+  const text = document.getElementById('api-status-text');
   try {
     const res = await fetch('/api/health');
     const data = await res.json();
-    if (data.api_key_configured) {
-      bar.innerHTML = '<span class="status-dot ok"></span> Connected — AI summarization enabled';
-    } else {
-      bar.innerHTML = '<span class="status-dot warn"></span> Running in demo mode — extractive summarization';
-    }
-    updateChatBadge(data.api_key_configured);
+    dot.className = 'status-dot ok';
+    text.textContent = data.api_key_configured ? 'Live Mode' : 'Demo Mode';
   } catch {
-    bar.innerHTML = '<span class="status-dot err"></span> Server not reachable';
+    dot.className = 'status-dot err';
+    text.textContent = 'Offline';
   }
 }
 
-checkHealth();
+// ── Dashboard ────────────────────────────────────────────────────────────────
 
-// Update keyboard hints for non-Mac
-if (!navigator.platform.includes('Mac')) {
-  document.querySelectorAll('.kbd-hint').forEach(el => {
-    el.textContent = 'Ctrl↵';
+let runsChart = null;
+let toolsChart = null;
+
+async function loadDashboard() {
+  // Load stats
+  try {
+    const res = await fetch('/api/stats');
+    const stats = await res.json();
+
+    document.getElementById('kpi-runs-today').textContent = stats.runs_today || 0;
+    document.getElementById('kpi-avg-latency').textContent = `${stats.avg_duration_ms || 0}ms`;
+    document.getElementById('kpi-total-cost').textContent = stats.total_cost_usd > 0 ? `$${stats.total_cost_usd.toFixed(4)}` : '$0.00';
+
+    renderRunsChart(stats.runs_by_day || []);
+    renderToolsChart(stats.runs_by_tool || {});
+  } catch { /* stats API might not have data yet */ }
+
+  // Load documents count
+  try {
+    const res = await fetch('/api/knowledge');
+    const data = await res.json();
+    document.getElementById('kpi-documents').textContent = data.count || 0;
+  } catch {
+    document.getElementById('kpi-documents').textContent = '0';
+  }
+
+  // Load scenario cards
+  loadScenarioCards();
+}
+
+function renderRunsChart(data) {
+  const ctx = document.getElementById('chart-runs')?.getContext('2d');
+  if (!ctx) return;
+
+  if (runsChart) runsChart.destroy();
+
+  const labels = data.map(d => d.date?.slice(5) || '');
+  const values = data.map(d => d.count || 0);
+
+  // Fill empty days
+  if (labels.length === 0) {
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(); d.setDate(d.getDate() - i);
+      labels.push(`${d.getMonth()+1}/${d.getDate()}`);
+      values.push(0);
+    }
+  }
+
+  runsChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Runs',
+        data: values,
+        borderColor: '#6c7fd8',
+        backgroundColor: 'rgba(108,127,216,0.1)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 3,
+        pointBackgroundColor: '#6c7fd8',
+      }],
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, ticks: { color: '#6b7190', stepSize: 1 }, grid: { color: 'rgba(255,255,255,0.04)' } },
+        x: { ticks: { color: '#6b7190' }, grid: { display: false } },
+      },
+    },
   });
 }
 
-// ── Loading states ──────────────────────────────────────────────────────────
+function renderToolsChart(data) {
+  const ctx = document.getElementById('chart-tools')?.getContext('2d');
+  if (!ctx) return;
 
-const LOADING_MESSAGES = {
-  analyze: [
-    'Detecting document type...',
-    'Extracting entities...',
-    'Identifying key points...',
-    'Computing statistics...',
-  ],
-  extract: [
-    'Scanning for fields...',
-    'Applying extraction strategy...',
-    'Matching field values...',
-  ],
-  summarize: [
-    'Analyzing text structure...',
-    'Identifying key sentences...',
-    'Generating summary...',
-  ],
-  pipeline: [
-    'Starting TypeScript pipeline...',
-    'Fetching data from API...',
-    'Cleaning and filtering records...',
-    'Aggregating results...',
-    'Formatting output...',
-  ],
-};
+  if (toolsChart) toolsChart.destroy();
 
-function showLoading(tool) {
-  const overlay = document.getElementById('loading-overlay');
-  const message = document.getElementById('loading-message');
-  overlay.classList.remove('hidden');
+  const labels = Object.keys(data);
+  const values = Object.values(data);
 
-  const messages = LOADING_MESSAGES[tool] || ['Processing...'];
-  let i = 0;
-  message.textContent = messages[0];
-
-  const interval = setInterval(() => {
-    i++;
-    if (i < messages.length) {
-      message.textContent = messages[i];
-    }
-  }, 600);
-
-  overlay.dataset.interval = interval;
-}
-
-function hideLoading() {
-  const overlay = document.getElementById('loading-overlay');
-  overlay.classList.add('hidden');
-  clearInterval(overlay.dataset.interval);
-}
-
-// ── Button loading states ────────────────────────────────────────────────────
-
-function setButtonLoading(tool, loading) {
-  const btnMap = {
-    analyze: 'btn-analyze',
-    extract: 'btn-extract',
-    summarize: 'btn-summarize',
-    pipeline: 'btn-pipeline',
-    process: 'btn-process',
-  };
-  const btn = document.getElementById(btnMap[tool]);
-  if (!btn) return;
-
-  if (loading) {
-    btn.disabled = true;
-    btn.classList.add('loading');
-    btn.querySelector('.btn-label').dataset.original = btn.querySelector('.btn-label').textContent;
-    btn.querySelector('.btn-label').textContent = 'Running...';
-  } else {
-    btn.disabled = false;
-    btn.classList.remove('loading');
-    const label = btn.querySelector('.btn-label');
-    if (label.dataset.original) {
-      label.textContent = label.dataset.original;
-    }
+  if (labels.length === 0) {
+    labels.push('No data');
+    values.push(0);
   }
+
+  const colors = ['#6c7fd8', '#4caf7d', '#d4a038', '#d45858', '#8194e8', '#7dd4af', '#d8c06c', '#d47070'];
+
+  toolsChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{ data: values, backgroundColor: colors.slice(0, labels.length), borderWidth: 0 }],
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { position: 'right', labels: { color: '#9399b0', boxWidth: 12, padding: 8, font: { size: 11 } } } },
+    },
+  });
 }
 
-// ── API call ────────────────────────────────────────────────────────────────
-
-async function callAPI(endpoint, body, tool) {
-  showLoading(tool);
-  setButtonLoading(tool, true);
-  hideResult();
-
-  const start = performance.now();
+async function loadScenarioCards() {
+  const grid = document.getElementById('scenario-grid');
+  if (!grid) return;
 
   try {
-    const res = await fetch(`/api/${endpoint}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-
-    const elapsed = Math.round(performance.now() - start);
-
-    if (!res.ok) {
-      const err = await res.json();
-      hideLoading();
-      setButtonLoading(tool, false);
-      showError(err.detail || `Request failed (${res.status})`);
-      showToast(err.detail || `Request failed (${res.status})`, 'error');
-      return null;
-    }
-
+    const res = await fetch('/api/scenarios');
     const data = await res.json();
-    hideLoading();
-    setButtonLoading(tool, false);
-    document.getElementById('result-time').textContent = `${elapsed}ms`;
-    showToast(`${tool.charAt(0).toUpperCase() + tool.slice(1)} completed in ${elapsed}ms`, 'success');
-    return data;
-  } catch (err) {
-    hideLoading();
-    setButtonLoading(tool, false);
-    showError(`Network error: ${err.message}`);
-    showToast('Network error — is the server running?', 'error');
-    return null;
+    const scenarios = data.scenarios || [];
+
+    grid.innerHTML = scenarios.map(s => `
+      <button class="scenario-card" onclick="navigateTo('scenario', {scenario: '${s.id}'})" type="button">
+        <div class="scenario-icon"><i data-lucide="${s.icon}"></i></div>
+        <div>
+          <strong>${s.name}</strong>
+          <span>${s.description}</span>
+        </div>
+      </button>
+    `).join('');
+
+    if (window.lucide) lucide.createIcons();
+  } catch {
+    grid.innerHTML = '<p style="color:var(--text-3)">Could not load scenarios</p>';
   }
 }
 
-// ── Document processing ─────────────────────────────────────────────────────
+// ── Scenarios ────────────────────────────────────────────────────────────────
+
+async function loadScenario(scenarioId) {
+  try {
+    const res = await fetch(`/api/scenarios/${scenarioId}`);
+    const scenario = await res.json();
+    currentScenario = scenario;
+
+    document.getElementById('scenario-title').textContent = scenario.name;
+    document.getElementById('scenario-badge').textContent = scenario.industry;
+    document.getElementById('scenario-description').textContent = scenario.description;
+
+    // Suggested prompts
+    const promptsEl = document.getElementById('suggested-prompts');
+    if (promptsEl && scenario.suggested_prompts) {
+      promptsEl.innerHTML = scenario.suggested_prompts.map(p =>
+        `<button class="suggestion-btn" onclick="sendScenarioPrompt(this)" type="button">${p}</button>`
+      ).join('');
+    }
+
+    // Reset output
+    document.getElementById('scenario-output').innerHTML = `
+      <div class="empty-state">
+        <i data-lucide="bot" class="empty-icon"></i>
+        <p>Run the agent to see results here</p>
+        <div class="suggested-prompts" id="suggested-prompts">
+          ${(scenario.suggested_prompts || []).map(p =>
+            `<button class="suggestion-btn" onclick="sendScenarioPrompt(this)" type="button">${p}</button>`
+          ).join('')}
+        </div>
+      </div>`;
+
+    document.getElementById('scenario-text').value = '';
+
+    if (window.lucide) lucide.createIcons();
+  } catch (e) {
+    showToast('Failed to load scenario', 'error');
+  }
+}
+
+function loadScenarioDemo() {
+  if (currentScenario?.demo_input) {
+    document.getElementById('scenario-text').value = currentScenario.demo_input;
+    showToast('Demo data loaded', 'info');
+  }
+}
+
+function sendScenarioPrompt(btn) {
+  document.getElementById('scenario-text').value = btn.textContent;
+  runScenario();
+}
+
+async function runScenario() {
+  const text = document.getElementById('scenario-text').value.trim();
+  if (!text) { showToast('Enter text or load demo data', 'error'); return; }
+
+  const output = document.getElementById('scenario-output');
+  output.innerHTML = '<div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>';
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text }),
+    });
+
+    if (res.headers.get('content-type')?.includes('text/event-stream')) {
+      // SSE streaming
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let fullText = '';
+
+      output.innerHTML = '<div class="chat-msg assistant"></div>';
+      const msgEl = output.querySelector('.chat-msg');
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (data.type === 'text') {
+                fullText += data.content;
+                msgEl.innerHTML = renderMarkdown(fullText);
+              } else if (data.type === 'tool_call') {
+                msgEl.innerHTML += `<div class="tool-call-card"><i data-lucide="wrench"></i> ${data.tool_name}</div>`;
+              }
+            } catch { /* skip malformed SSE */ }
+          }
+        }
+      }
+      if (window.lucide) lucide.createIcons();
+    } else {
+      const data = await res.json();
+      output.innerHTML = `<div class="chat-msg assistant">${renderMarkdown(data.response || JSON.stringify(data, null, 2))}</div>`;
+    }
+  } catch (e) {
+    output.innerHTML = `<div class="chat-msg assistant" style="border-left: 3px solid var(--red)">Error: ${e.message}</div>`;
+  }
+}
+
+// ── Upload ───────────────────────────────────────────────────────────────────
+
+const uploadZone = document.getElementById('upload-zone');
+const uploadInput = document.getElementById('upload-input');
+
+if (uploadZone) {
+  uploadZone.addEventListener('click', () => uploadInput?.click());
+  uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+  uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+  uploadZone.addEventListener('drop', e => {
+    e.preventDefault();
+    uploadZone.classList.remove('drag-over');
+    if (e.dataTransfer.files.length) uploadFile(e.dataTransfer.files[0]);
+  });
+}
+uploadInput?.addEventListener('change', () => { if (uploadInput.files.length) uploadFile(uploadInput.files[0]); });
+
+async function uploadFile(file) {
+  const progress = document.getElementById('upload-progress');
+  const fill = document.getElementById('progress-fill');
+  const text = document.getElementById('progress-text');
+  const result = document.getElementById('upload-result');
+
+  progress.classList.remove('hidden');
+  fill.style.width = '30%';
+  text.textContent = `Uploading ${file.name}...`;
+
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    fill.style.width = '60%';
+    text.textContent = 'Processing and embedding...';
+
+    const res = await fetch('/api/upload', { method: 'POST', body: formData });
+    const data = await res.json();
+
+    fill.style.width = '100%';
+
+    if (res.ok) {
+      text.textContent = 'Done!';
+      result.innerHTML = `<div style="color:var(--green)">✓ <strong>${data.filename}</strong> ingested — ${data.chunk_count || 0} chunks stored in knowledge base</div>`;
+      showToast(`${data.filename} uploaded successfully`, 'success');
+    } else {
+      text.textContent = 'Failed';
+      result.innerHTML = `<div style="color:var(--red)">✗ ${data.detail || 'Upload failed'}</div>`;
+      showToast(data.detail || 'Upload failed', 'error');
+    }
+  } catch (e) {
+    fill.style.width = '0%';
+    text.textContent = 'Error';
+    showToast(`Upload error: ${e.message}`, 'error');
+  }
+
+  setTimeout(() => { progress.classList.add('hidden'); fill.style.width = '0%'; }, 3000);
+}
+
+// ── Knowledge Base ───────────────────────────────────────────────────────────
+
+async function loadKnowledgeBase() {
+  const list = document.getElementById('knowledge-list');
+  if (!list) return;
+
+  try {
+    const res = await fetch('/api/knowledge');
+    const data = await res.json();
+    const docs = data.documents || [];
+
+    if (docs.length === 0) {
+      list.innerHTML = `
+        <div class="empty-state">
+          <i data-lucide="folder-open" class="empty-icon"></i>
+          <p>No documents uploaded yet</p>
+          <button class="btn-secondary" onclick="navigateTo('upload')" type="button">
+            <i data-lucide="upload"></i> Upload your first document
+          </button>
+        </div>`;
+    } else {
+      list.innerHTML = docs.map(d => `
+        <div class="doc-card">
+          <div class="doc-icon"><i data-lucide="${getFileIcon(d.file_type)}"></i></div>
+          <div class="doc-info">
+            <div class="doc-name">${d.filename || d.doc_id}</div>
+            <div class="doc-meta">${d.file_type || 'unknown'} · ${d.chunk_count || '?'} chunks · ${formatDate(d.created_at)}</div>
+          </div>
+          <div class="doc-actions">
+            <button class="doc-delete-btn" onclick="deleteDocument('${d.doc_id}')" title="Delete" type="button">
+              <i data-lucide="trash-2"></i>
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    if (window.lucide) lucide.createIcons();
+  } catch {
+    list.innerHTML = '<p style="color:var(--text-3);text-align:center;padding:2rem">Could not load knowledge base</p>';
+  }
+}
+
+function getFileIcon(type) {
+  const icons = { pdf: 'file-text', docx: 'file-text', eml: 'mail', txt: 'file', md: 'file-code' };
+  return icons[type] || 'file';
+}
+
+function formatDate(iso) {
+  if (!iso) return '';
+  try { return new Date(iso).toLocaleDateString(); } catch { return ''; }
+}
+
+async function deleteDocument(docId) {
+  if (!confirm('Delete this document from the knowledge base?')) return;
+  try {
+    await fetch(`/api/knowledge/${docId}`, { method: 'DELETE' });
+    showToast('Document deleted', 'success');
+    loadKnowledgeBase();
+  } catch { showToast('Delete failed', 'error'); }
+}
+
+// ── Tool Functions (Process, Analyze, Extract, Summarize, Pipeline) ─────────
 
 async function runProcess() {
   const text = document.getElementById('process-text').value.trim();
-  if (!text) { flash('process-text'); return; }
+  if (!text) { showToast('Paste a document to process', 'error'); return; }
 
   const docType = document.getElementById('process-type').value;
-  const stepsEl = document.getElementById('process-steps');
-  const stepNodes = stepsEl.querySelectorAll('.process-step');
+  const steps = document.getElementById('process-steps');
+  const result = document.getElementById('process-result');
+  steps.classList.remove('hidden');
+  result.innerHTML = '';
 
-  // Reset and show step tracker
-  stepNodes.forEach(node => {
-    node.querySelector('.step-icon').className = 'step-icon pending';
-    node.querySelector('.step-icon').textContent = '○';
-    node.querySelector('.step-time').textContent = '';
-    node.classList.remove('done', 'active');
-  });
-  stepsEl.classList.remove('hidden');
-  setButtonLoading('process', true);
-  hideResult();
+  const stepEls = steps.querySelectorAll('.process-step');
+  stepEls.forEach(s => { s.classList.remove('active', 'done'); s.querySelector('.step-icon').className = 'step-icon pending'; s.querySelector('.step-icon').textContent = '○'; s.querySelector('.step-time').textContent = ''; });
 
-  // Animate steps sequentially while waiting for API
-  const stepNames = ['analyze', 'extract', 'summarize', 'validate'];
-  let currentStep = 0;
-
-  function activateStep(index) {
-    if (index >= stepNames.length) return;
-    const node = stepNodes[index];
-    node.classList.add('active');
-    node.querySelector('.step-icon').className = 'step-icon running';
-    node.querySelector('.step-icon').textContent = '◌';
-  }
-
-  activateStep(0);
-  const stepInterval = setInterval(() => {
-    if (currentStep < stepNames.length) {
-      const node = stepNodes[currentStep];
-      node.classList.remove('active');
-      node.classList.add('done');
-      node.querySelector('.step-icon').className = 'step-icon done';
-      node.querySelector('.step-icon').textContent = '✓';
-      currentStep++;
-      activateStep(currentStep);
-    }
-  }, 400);
-
-  const start = performance.now();
+  const btn = document.getElementById('btn-process');
+  btn.disabled = true;
 
   try {
+    const startTime = Date.now();
+    const stepNames = ['analyze', 'extract', 'summarize', 'validate'];
+    stepNames.forEach((name, i) => {
+      setTimeout(() => {
+        stepEls[i].classList.add('active');
+        stepEls[i].querySelector('.step-icon').className = 'step-icon running';
+        stepEls[i].querySelector('.step-icon').textContent = '◉';
+      }, i * 200);
+    });
+
     const res = await fetch('/api/process', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text, document_type: docType }),
     });
-
-    clearInterval(stepInterval);
-    const elapsed = Math.round(performance.now() - start);
-
-    if (!res.ok) {
-      const err = await res.json();
-      resetProcessSteps();
-      setButtonLoading('process', false);
-      showError(err.detail || `Request failed (${res.status})`);
-      showToast(err.detail || 'Processing failed', 'error');
-      return;
-    }
-
     const data = await res.json();
+    const elapsed = Date.now() - startTime;
 
-    // Update steps with actual results
-    data.data.steps.forEach((step, i) => {
-      const node = stepNodes[i];
-      node.classList.remove('active');
-      node.classList.add('done');
-      node.querySelector('.step-icon').className = 'step-icon done';
-      node.querySelector('.step-icon').textContent = '✓';
-      node.querySelector('.step-time').textContent = `${step.duration_ms}ms`;
+    stepEls.forEach((s, i) => {
+      s.classList.remove('active');
+      s.classList.add('done');
+      s.querySelector('.step-icon').className = 'step-icon done';
+      s.querySelector('.step-icon').textContent = '✓';
+      s.querySelector('.step-time').textContent = `${Math.round(elapsed / 4 * (i + 1))}ms`;
     });
 
-    document.getElementById('result-time').textContent = `${elapsed}ms`;
-    setButtonLoading('process', false);
-    showToast(`Document processed in ${elapsed}ms`, 'success');
-    renderProcess(data.data);
-  } catch (err) {
-    clearInterval(stepInterval);
-    resetProcessSteps();
-    setButtonLoading('process', false);
-    showError(`Network error: ${err.message}`);
-    showToast('Network error — is the server running?', 'error');
+    result.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+    showToast('Document processed successfully', 'success');
+  } catch (e) {
+    result.innerHTML = `<div style="color:var(--red)">Error: ${e.message}</div>`;
+    showToast('Processing failed', 'error');
   }
+  btn.disabled = false;
 }
-
-function resetProcessSteps() {
-  const stepsEl = document.getElementById('process-steps');
-  stepsEl.classList.add('hidden');
-}
-
-function renderProcess(d) {
-  // Guard: old runs or failed runs may not have all four steps.
-  // Fall back to a compact summary so replay doesn't crash.
-  if (!d || !Array.isArray(d.steps) || d.steps.length < 4) {
-    renderProcessCompact(d);
-    return;
-  }
-
-  const analysis = d.steps[0].data;
-  const extraction = d.steps[1].data;
-  const summary = d.steps[2].data;
-  const validation = d.steps[3].data;
-
-  const allEntities = [
-    ...analysis.entities.emails.map(e => ({ icon: '📧', label: 'Email', value: e })),
-    ...analysis.entities.dates.map(e => ({ icon: '📅', label: 'Date', value: e })),
-    ...analysis.entities.urls.map(e => ({ icon: '🔗', label: 'URL', value: e })),
-    ...analysis.entities.organizations.map(e => ({ icon: '🏢', label: 'Org', value: e })),
-  ];
-
-  const found = Object.entries(extraction.extracted).filter(([, v]) => v !== null);
-  const missing = Object.entries(extraction.extracted).filter(([, v]) => v === null);
-
-  const confidencePct = Math.round(d.confidence * 100);
-  const confidenceColor = confidencePct >= 80 ? 'high' : confidencePct >= 50 ? 'mid' : 'low';
-
-  const severityIcon = { error: '❌', warning: '⚠️', info: 'ℹ️', pass: '✅' };
-
-  setResultHeader('Document Processing Report',
-    `${d.steps.length} processing steps completed in ${d.total_duration_ms}ms`);
-
-  const html = `
-    <div class="process-report">
-
-      <!-- Smart summary (if available) -->
-      ${summary.smart_summary ? `
-        <div class="smart-summary">
-          <span class="smart-summary-icon">📄</span>
-          <p>${esc(summary.smart_summary)}</p>
-        </div>
-      ` : ''}
-
-      <!-- Overview card -->
-      <div class="process-overview">
-        <div class="overview-stat">
-          <span class="overview-label">Document Type</span>
-          <span class="tag type-tag">${d.document_type.replace(/_/g, ' ')}</span>
-        </div>
-        <div class="overview-stat">
-          <span class="overview-label">Fields Extracted</span>
-          <span class="overview-value">${d.fields_extracted}</span>
-        </div>
-        <div class="overview-stat">
-          <span class="overview-label">Entities Found</span>
-          <span class="overview-value">${d.entities_found}</span>
-        </div>
-        <div class="overview-stat">
-          <span class="overview-label">Confidence</span>
-          <div class="confidence-bar">
-            <div class="confidence-fill ${confidenceColor}" style="width: ${confidencePct}%"></div>
-          </div>
-          <span class="confidence-label">${confidencePct}%</span>
-        </div>
-      </div>
-
-      <!-- Step 1: Analysis -->
-      <div class="process-section">
-        <div class="process-section-header">
-          <span class="process-section-icon">🔍</span>
-          <h4>Analysis</h4>
-          <span class="step-badge">${d.steps[0].duration_ms}ms</span>
-        </div>
-        <div class="process-section-body">
-          <div class="result-grid">
-            <div class="result-card">
-              <h4>Statistics</h4>
-              ${statRow('Words', analysis.statistics.word_count)}
-              ${statRow('Sentences', analysis.statistics.sentence_count)}
-              ${statRow('Paragraphs', analysis.statistics.paragraph_count)}
-              ${statRow('Lines', analysis.statistics.line_count)}
-            </div>
-            <div class="result-card">
-              <h4>Structure</h4>
-              ${analysis.sections.length > 0
-                ? `<div class="section-tree">${analysis.sections.map(s =>
-                    `<div class="section-item level-${s.level}"><span class="section-marker">H${s.level}</span>${esc(s.title)}</div>`
-                  ).join('')}</div>`
-                : `<p class="empty-state">No heading structure detected</p>`}
-            </div>
-            ${allEntities.length > 0 ? `
-              <div class="result-card full-width">
-                <h4>Entities <span class="count-badge">${allEntities.length}</span></h4>
-                <div class="entity-grid">${allEntities.map(e =>
-                  `<div class="entity-item"><span class="entity-icon">${e.icon}</span><div><span class="entity-label">${e.label}</span><span class="entity-value">${esc(e.value)}</span></div></div>`
-                ).join('')}</div>
-              </div>
-            ` : ''}
-          </div>
-        </div>
-      </div>
-
-      <!-- Step 2: Extraction -->
-      <div class="process-section">
-        <div class="process-section-header">
-          <span class="process-section-icon">📋</span>
-          <h4>Extraction</h4>
-          <span class="step-badge">${d.steps[1].duration_ms}ms</span>
-        </div>
-        <div class="process-section-body">
-          <table class="data-table">
-            <thead><tr><th>Field</th><th>Value</th><th>Status</th></tr></thead>
-            <tbody>
-              ${found.map(([k, v]) => `
-                <tr>
-                  <td class="field-name">${esc(k)}</td>
-                  <td class="field-value">${esc(String(v))}</td>
-                  <td><span class="status-pill ok">found</span></td>
-                </tr>
-              `).join('')}
-              ${missing.map(([k]) => `
-                <tr class="missing-row">
-                  <td class="field-name">${esc(k)}</td>
-                  <td class="field-value empty">—</td>
-                  <td><span class="status-pill miss">missing</span></td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-          <div class="extraction-summary">
-            <span class="tag">${extraction.strategy} strategy</span>
-            ${(extraction.strategies_used || []).map(s => `<span class="tag">${s}</span>`).join('')}
-          </div>
-        </div>
-      </div>
-
-      <!-- Step 3: Summary -->
-      <div class="process-section">
-        <div class="process-section-header">
-          <span class="process-section-icon">✏️</span>
-          <h4>Summary</h4>
-          <span class="step-badge">${d.steps[2].duration_ms}ms</span>
-        </div>
-        <div class="process-section-body">
-          <div class="summary-text">${formatSummary(summary.summary)}</div>
-          <div class="summary-meta">
-            <span class="tag">${summary.method === 'ai' ? '🤖 AI-powered' : '📝 Extractive'}</span>
-            <span class="tag">${summary.format}</span>
-            <span class="tag">${summary.original_word_count} words → ${summary.summary.split(/\s+/).length} words</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Step 4: Validation -->
-      <div class="process-section">
-        <div class="process-section-header">
-          <span class="process-section-icon">${d.validation_errors > 0 ? '⚠️' : '✅'}</span>
-          <h4>Validation</h4>
-          <span class="step-badge">${d.steps[3].duration_ms}ms</span>
-        </div>
-        <div class="process-section-body">
-          ${validation.issues.length > 0 ? `
-            <div class="validation-list">
-              ${validation.issues.map(issue => `
-                <div class="validation-item ${issue.severity}">
-                  <span class="validation-icon">${severityIcon[issue.severity] || 'ℹ️'}</span>
-                  <div class="validation-content">
-                    <span class="validation-field">${esc(issue.field)}</span>
-                    <span class="validation-message">${esc(issue.message)}</span>
-                  </div>
-                </div>
-              `).join('')}
-            </div>
-          ` : '<p class="empty-state">No validation issues found</p>'}
-        </div>
-      </div>
-
-      <!-- ERP Output -->
-      <div class="process-section">
-        <div class="process-section-header">
-          <span class="process-section-icon">🔗</span>
-          <h4>ERP-Ready Output</h4>
-          <div class="erp-actions">
-            <button class="btn-small" onclick="copyErpOutput('json', this)">Copy JSON</button>
-            <button class="btn-small" onclick="copyErpOutput('csv', this)">Copy CSV</button>
-          </div>
-        </div>
-        <div class="process-section-body">
-          <p class="erp-description">Structured payload ready for import into ERP systems (Infor M3, Business Central, SAP) or downstream processing via API.</p>
-          <pre class="erp-json" id="erp-json-output">${esc(JSON.stringify(d.erp_output, null, 2))}</pre>
-        </div>
-      </div>
-
-    </div>
-  `;
-  showResult(html);
-}
-
-function copyErpOutput(format, btn) {
-  const data = JSON.parse(document.getElementById('erp-json-output').textContent);
-  let text;
-
-  if (format === 'csv') {
-    const fields = data.extracted_fields;
-    const headers = Object.keys(fields).join(',');
-    const values = Object.values(fields).map(v => `"${v}"`).join(',');
-    text = `${headers}\n${values}`;
-  } else {
-    text = JSON.stringify(data, null, 2);
-  }
-
-  navigator.clipboard.writeText(text).then(() => {
-    const original = btn.textContent;
-    btn.textContent = 'Copied!';
-    btn.classList.add('copied');
-    setTimeout(() => {
-      btn.textContent = original;
-      btn.classList.remove('copied');
-    }, 1500);
-  });
-}
-
-// ── Tool runners ────────────────────────────────────────────────────────────
 
 async function runAnalyze() {
   const text = document.getElementById('analyze-text').value.trim();
-  if (!text) { flash('analyze-text'); return; }
+  if (!text) { showToast('Paste text to analyze', 'error'); return; }
 
-  const data = await callAPI('analyze', {
-    text,
-    focus: document.getElementById('analyze-focus').value,
-  }, 'analyze');
+  const focus = document.getElementById('analyze-focus').value;
+  const result = document.getElementById('analyze-result');
+  const btn = document.getElementById('btn-analyze');
+  btn.disabled = true;
+  result.innerHTML = '<div class="loading-spinner"></div>';
 
-  if (data) renderAnalyze(data.data);
+  try {
+    const res = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, focus }),
+    });
+    const data = await res.json();
+    result.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+    showToast('Analysis complete', 'success');
+  } catch (e) {
+    result.innerHTML = `<div style="color:var(--red)">Error: ${e.message}</div>`;
+  }
+  btn.disabled = false;
 }
 
 async function runExtract() {
   const text = document.getElementById('extract-text').value.trim();
-  const fieldsStr = document.getElementById('extract-fields').value.trim();
-  if (!text) { flash('extract-text'); return; }
-  if (!fieldsStr) { flash('extract-fields'); return; }
+  if (!text) { showToast('Paste text to extract from', 'error'); return; }
 
-  const fields = fieldsStr.split(',').map(f => f.trim()).filter(Boolean);
-  const data = await callAPI('extract', {
-    text,
-    fields,
-    strategy: document.getElementById('extract-strategy').value,
-  }, 'extract');
+  const fieldsRaw = document.getElementById('extract-fields').value;
+  const strategy = document.getElementById('extract-strategy').value;
+  const fields = fieldsRaw ? fieldsRaw.split(',').map(f => f.trim()).filter(Boolean) : [];
+  const result = document.getElementById('extract-result');
+  const btn = document.getElementById('btn-extract');
+  btn.disabled = true;
+  result.innerHTML = '<div class="loading-spinner"></div>';
 
-  if (data) renderExtract(data.data);
+  try {
+    const res = await fetch('/api/extract', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, fields, strategy }),
+    });
+    const data = await res.json();
+    result.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+    showToast('Extraction complete', 'success');
+  } catch (e) {
+    result.innerHTML = `<div style="color:var(--red)">Error: ${e.message}</div>`;
+  }
+  btn.disabled = false;
 }
 
 async function runSummarize() {
   const text = document.getElementById('summarize-text').value.trim();
-  if (!text) { flash('summarize-text'); return; }
+  if (!text) { showToast('Paste text to summarize', 'error'); return; }
 
-  const data = await callAPI('summarize', {
-    text,
-    format: document.getElementById('summarize-format').value,
-    max_points: parseInt(document.getElementById('summarize-points').value),
-  }, 'summarize');
+  const format = document.getElementById('summarize-format').value;
+  const maxPoints = parseInt(document.getElementById('summarize-points').value) || 5;
+  const result = document.getElementById('summarize-result');
+  const btn = document.getElementById('btn-summarize');
+  btn.disabled = true;
+  result.innerHTML = '<div class="loading-spinner"></div>';
 
-  if (data) renderSummarize(data.data);
+  try {
+    const res = await fetch('/api/summarize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, format, max_points: maxPoints }),
+    });
+    const data = await res.json();
+    result.innerHTML = renderMarkdown(data.summary || JSON.stringify(data, null, 2));
+    showToast('Summary complete', 'success');
+  } catch (e) {
+    result.innerHTML = `<div style="color:var(--red)">Error: ${e.message}</div>`;
+  }
+  btn.disabled = false;
+}
+
+let selectedPipeline = 'github';
+function selectPipeline(name) {
+  selectedPipeline = name;
+  document.querySelectorAll('.pipeline-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById(`pipe-${name}`)?.classList.add('selected');
 }
 
 async function runPipeline() {
-  const data = await callAPI('pipeline', {
-    task: `Run ${selectedPipeline} analysis pipeline`,
-    pipeline: selectedPipeline,
-  }, 'pipeline');
+  const result = document.getElementById('pipeline-result');
+  const btn = document.getElementById('btn-pipeline');
+  btn.disabled = true;
+  result.innerHTML = '<div class="loading-spinner"></div>';
 
-  if (data) renderPipeline(data.data);
-}
-
-// ── Process compact renderer ────────────────────────────────────────────────
-// Fallback used when a replay doesn't have the full 4-step pipeline payload.
-// Shows whatever top-level summary fields we do have, so the UI degrades
-// gracefully rather than throwing.
-
-function renderProcessCompact(d) {
-  if (!d) {
-    showResult('<p class="empty-state">No output was recorded for this run.</p>');
-    return;
+  try {
+    const res = await fetch('/api/pipeline', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pipeline: selectedPipeline }),
+    });
+    const data = await res.json();
+    result.innerHTML = renderMarkdown(data.result || JSON.stringify(data, null, 2));
+    showToast('Pipeline complete', 'success');
+  } catch (e) {
+    result.innerHTML = `<div style="color:var(--red)">Error: ${e.message}</div>`;
   }
-
-  const overviewRows = [];
-  if (d.document_type) overviewRows.push(['Document Type', esc(d.document_type.replace(/_/g, ' '))]);
-  if (d.fields_extracted) overviewRows.push(['Fields Extracted', esc(d.fields_extracted)]);
-  if (typeof d.entities_found === 'number') overviewRows.push(['Entities Found', d.entities_found]);
-  if (typeof d.confidence === 'number') overviewRows.push(['Confidence', `${Math.round(d.confidence * 100)}%`]);
-  if (typeof d.total_duration_ms === 'number') overviewRows.push(['Total Duration', `${d.total_duration_ms}ms`]);
-  if (typeof d.validation_errors === 'number') overviewRows.push(['Validation Errors', d.validation_errors]);
-
-  const overview = overviewRows.length > 0
-    ? `<div class="result-card"><h4>Run Summary</h4>${
-        overviewRows.map(([k, v]) => statRow(k, v)).join('')
-      }</div>`
-    : '';
-
-  const erpBlock = d.erp_output
-    ? `<div class="result-card full-width">
-         <h4>ERP-Ready Output</h4>
-         <pre class="erp-json">${esc(JSON.stringify(d.erp_output, null, 2))}</pre>
-       </div>`
-    : '';
-
-  setResultHeader(
-    'Document Processing',
-    'Compact replay — full step-by-step data was not recorded for this run.',
-  );
-
-  showResult(`
-    <div class="result-grid">
-      ${overview}
-      ${erpBlock}
-    </div>
-  `);
+  btn.disabled = false;
 }
 
-// ── Chat replay renderer ────────────────────────────────────────────────────
-// Shown when the user clicks a chat run in the history sidebar. The live
-// chat flow still streams into #chat-messages — this renders a read-only
-// transcript into the result panel instead so the original chat view is
-// not clobbered.
+// ── Chat ─────────────────────────────────────────────────────────────────────
 
-function renderChat(d) {
-  const userMsg = d && d.message ? d.message : null;
-  const answer = d && d.answer ? d.answer : null;
-
-  if (!userMsg && !answer) {
-    showResult('<p class="empty-state">No chat content was recorded for this run.</p>');
-    return;
-  }
-
-  setResultHeader('Chat — replay', 'Read-only transcript of a previous conversation');
-
-  const userBlock = userMsg ? `
-    <div class="replay-chat-bubble user">
-      <div class="replay-chat-role">You</div>
-      <div class="replay-chat-text">${renderMarkdown(userMsg, { lineBreaks: true })}</div>
-    </div>
-  ` : '';
-
-  const agentBlock = answer ? `
-    <div class="replay-chat-bubble agent">
-      <div class="replay-chat-role">Agent</div>
-      <div class="replay-chat-text">${renderMarkdown(answer, { lineBreaks: true })}</div>
-    </div>
-  ` : '';
-
-  showResult(`<div class="replay-chat">${userBlock}${agentBlock}</div>`);
+function sendSuggestion(btn) {
+  document.getElementById('chat-input').value = btn.textContent;
+  sendChat();
 }
 
-// ── Renderers ───────────────────────────────────────────────────────────────
-
-function renderAnalyze(d) {
-  const entities = d.entities;
-  const allEntities = [
-    ...entities.emails.map(e => ({ icon: '📧', label: 'Email', value: e })),
-    ...entities.dates.map(e => ({ icon: '📅', label: 'Date', value: e })),
-    ...entities.urls.map(e => ({ icon: '🔗', label: 'URL', value: e })),
-    ...entities.organizations.map(e => ({ icon: '🏢', label: 'Org', value: e })),
-  ];
-
-  setResultHeader('Document Analysis',
-    `Detected as "${d.document_type.replace(/_/g, ' ')}" with focus on ${d.focus}`);
-
-  const html = `
-    <div class="result-grid">
-      <div class="result-card">
-        <h4>Document Type</h4>
-        <span class="tag type-tag">${d.document_type.replace(/_/g, ' ')}</span>
-      </div>
-      <div class="result-card">
-        <h4>Statistics</h4>
-        ${statRow('Words', d.statistics.word_count)}
-        ${statRow('Sentences', d.statistics.sentence_count)}
-        ${statRow('Paragraphs', d.statistics.paragraph_count)}
-        ${statRow('Lines', d.statistics.line_count)}
-      </div>
-      <div class="result-card${allEntities.length > 4 ? ' full-width' : ''}">
-        <h4>Entities Found <span class="count-badge">${allEntities.length}</span></h4>
-        ${allEntities.length > 0
-          ? `<div class="entity-grid">${allEntities.map(e =>
-              `<div class="entity-item"><span class="entity-icon">${e.icon}</span><div><span class="entity-label">${e.label}</span><span class="entity-value">${esc(e.value)}</span></div></div>`
-            ).join('')}</div>`
-          : '<p class="empty-state">No entities detected in this text</p>'}
-      </div>
-      ${d.sections.length > 0 ? `
-        <div class="result-card">
-          <h4>Document Structure</h4>
-          <div class="section-tree">${d.sections.map(s =>
-            `<div class="section-item level-${s.level}"><span class="section-marker">H${s.level}</span>${esc(s.title)}</div>`
-          ).join('')}</div>
-        </div>
-      ` : ''}
-      ${d.key_points.length > 0 ? `
-        <div class="result-card full-width">
-          <h4>Key Points</h4>
-          <div class="key-points-list">${d.key_points.map(p =>
-            `<div class="key-point"><span class="kp-marker">▸</span><span>${esc(p)}</span></div>`
-          ).join('')}</div>
-        </div>
-      ` : ''}
-    </div>
-  `;
-  showResult(html);
-}
-
-function renderExtract(d) {
-  const found = Object.entries(d.extracted).filter(([, v]) => v !== null);
-  const missing = Object.entries(d.extracted).filter(([, v]) => v === null);
-
-  setResultHeader('Extracted Data',
-    `Found ${d.fields_found} of ${d.fields_found + d.fields_missing} fields using ${d.strategy} strategy`);
-
-  const html = `
-    <div class="result-grid">
-      <div class="result-card full-width">
-        <h4>Extracted Fields</h4>
-        <table class="data-table">
-          <thead><tr><th>Field</th><th>Value</th><th>Status</th></tr></thead>
-          <tbody>
-            ${found.map(([k, v]) => `
-              <tr>
-                <td class="field-name">${esc(k)}</td>
-                <td class="field-value">${esc(String(v))}</td>
-                <td><span class="status-pill ok">found</span></td>
-              </tr>
-            `).join('')}
-            ${missing.map(([k]) => `
-              <tr class="missing-row">
-                <td class="field-name">${esc(k)}</td>
-                <td class="field-value empty">—</td>
-                <td><span class="status-pill miss">missing</span></td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </div>
-      <div class="result-card">
-        <h4>Extraction Details</h4>
-        ${statRow('Fields found', d.fields_found)}
-        ${statRow('Fields missing', d.fields_missing)}
-        ${statRow('Strategy', d.strategy)}
-      </div>
-      <div class="result-card">
-        <h4>Strategies Used</h4>
-        <div class="tag-group">
-          ${(d.strategies_used || [d.strategy]).map(s => `<span class="tag">${s}</span>`).join('')}
-        </div>
-      </div>
-    </div>
-  `;
-  showResult(html);
-}
-
-function renderSummarize(d) {
-  const methodLabel = d.method === 'ai' ? '🤖 AI-powered (Claude)' : '📝 Extractive';
-  const compressionRatio = d.original_word_count > 0
-    ? Math.round((1 - d.summary.split(/\s+/).length / d.original_word_count) * 100)
-    : 0;
-
-  setResultHeader('Summary',
-    `${d.method === 'ai' ? 'AI-generated' : 'Extractive'} summary in ${d.format} format`);
-
-  const html = `
-    <div class="result-grid">
-      <div class="result-card full-width">
-        <h4>Summary</h4>
-        <div class="summary-text">${formatSummary(d.summary)}</div>
-      </div>
-      <div class="result-card">
-        <h4>Method</h4>
-        <div class="method-display">${methodLabel}</div>
-        <span class="tag">${d.format}</span>
-      </div>
-      <div class="result-card">
-        <h4>Compression</h4>
-        ${statRow('Original words', d.original_word_count)}
-        ${statRow('Sentences', d.sentence_count)}
-        ${statRow('Reduction', `${compressionRatio}%`)}
-      </div>
-    </div>
-  `;
-  showResult(html);
-}
-
-function renderPipeline(d) {
-  const pipelineName = d.pipeline === 'github' ? 'GitHub Repository Analysis' : 'Post Activity Analysis';
-
-  setResultHeader(pipelineName,
-    'TypeScript pipeline completed: Fetch → Clean → Filter → Aggregate → Format');
-
-  // Parse markdown table to HTML
-  const tableHtml = markdownTableToHtml(d.output);
-
-  const html = `
-    <div class="result-grid">
-      <div class="result-card full-width">
-        <h4>Pipeline Output</h4>
-        ${tableHtml}
-      </div>
-      <div class="result-card">
-        <h4>Pipeline Details</h4>
-        ${statRow('Pipeline', d.pipeline)}
-        ${statRow('Status', '✓ Success')}
-      </div>
-      <div class="result-card">
-        <h4>Data Source</h4>
-        <span class="tag type-tag">${d.pipeline === 'github' ? 'GitHub API (live)' : 'JSONPlaceholder API'}</span>
-        <p class="card-note">${d.pipeline === 'github'
-          ? 'Fetched real repository data from api.github.com'
-          : 'Fetched sample post data from jsonplaceholder.typicode.com'}</p>
-      </div>
-    </div>
-  `;
-  showResult(html);
-}
-
-// ── Markdown table parser ───────────────────────────────────────────────────
-
-function markdownTableToHtml(md) {
-  const lines = md.trim().split('\n').filter(l => l.trim());
-  if (lines.length < 2) return `<pre class="raw-output">${esc(md)}</pre>`;
-
-  // Check if it looks like a markdown table
-  if (!lines[0].includes('|')) return `<pre class="raw-output">${esc(md)}</pre>`;
-
-  const parseRow = line => line.split('|').map(c => c.trim()).filter(Boolean);
-
-  const headers = parseRow(lines[0]);
-  // Skip separator line (line 1)
-  const rows = lines.slice(2).map(parseRow);
-
-  return `
-    <table class="data-table pipeline-table">
-      <thead><tr>${headers.map(h => `<th>${esc(h)}</th>`).join('')}</tr></thead>
-      <tbody>${rows.map(r => `<tr>${r.map(c => `<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody>
-    </table>
-  `;
-}
-
-// ── Agent Chat ──────────────────────────────────────────────────────────────
-
-let chatBusy = false;
-
-function handleChatSubmit(e) {
-  e.preventDefault();
+async function sendChat() {
   const input = document.getElementById('chat-input');
   const message = input.value.trim();
-  if (!message || chatBusy) return;
+  if (!message) return;
 
-  input.value = '';
-  input.style.height = 'auto';
-  sendChatMessage(message);
-}
-
-function sendChatSuggestion(text) {
-  if (chatBusy) return;
-  sendChatMessage(text);
-}
-
-async function sendChatMessage(message) {
-  chatBusy = true;
   const messages = document.getElementById('chat-messages');
-  const sendBtn = document.getElementById('chat-send-btn');
-  sendBtn.disabled = true;
 
-  // Remove welcome if present
+  // Clear welcome
   const welcome = messages.querySelector('.chat-welcome');
   if (welcome) welcome.remove();
 
   // Add user message
-  appendChatMessage('user', message);
+  messages.innerHTML += `<div class="chat-msg user">${escapeHtml(message)}</div>`;
+  input.value = '';
+  messages.scrollTop = messages.scrollHeight;
 
-  // Add agent message placeholder
-  const agentBubble = appendChatMessage('agent', '');
-  const textEl = agentBubble.querySelector('.chat-text');
-  const metaEl = agentBubble.querySelector('.chat-meta');
-
-  // Show typing indicator
-  textEl.innerHTML = '<span class="typing-indicator"><span></span><span></span><span></span></span>';
+  // Typing indicator
+  messages.innerHTML += '<div class="typing-indicator" id="typing"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>';
+  messages.scrollTop = messages.scrollHeight;
 
   try {
     const res = await fetch('/api/chat', {
@@ -968,258 +640,103 @@ async function sendChatMessage(message) {
       body: JSON.stringify({ message }),
     });
 
-    if (!res.ok) {
-      textEl.textContent = 'Sorry, something went wrong. Please try again.';
-      chatBusy = false;
-      sendBtn.disabled = false;
-      return;
-    }
+    document.getElementById('typing')?.remove();
 
-    // Parse SSE stream
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    let fullText = '';
-    let toolCalls = [];
-    let currentEvent = null;
+    if (res.headers.get('content-type')?.includes('text/event-stream')) {
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let fullText = '';
+      const msgDiv = document.createElement('div');
+      msgDiv.className = 'chat-msg assistant';
+      messages.appendChild(msgDiv);
 
-    textEl.textContent = '';
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-
-      for (const line of lines) {
-        if (line.startsWith('event: ')) {
-          currentEvent = line.slice(7).trim();
-        } else if (line.startsWith('data: ') && currentEvent) {
-          const data = line.slice(6);
-
-          if (currentEvent === 'text') {
-            fullText += data;
-            textEl.innerHTML = renderMarkdown(fullText, { lineBreaks: true });
-            scrollChatToBottom();
-          } else if (currentEvent === 'tool_call') {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        for (const line of chunk.split('\n')) {
+          if (line.startsWith('data: ')) {
             try {
-              const tc = JSON.parse(data);
-              toolCalls.push(tc);
-              appendToolCard(agentBubble, tc);
-              scrollChatToBottom();
-            } catch { /* skip malformed */ }
-          } else if (currentEvent === 'done') {
-            try {
-              const meta = JSON.parse(data);
-              if (meta.demo_mode) {
-                metaEl.textContent = 'Demo mode — connect API key for live agent';
-              } else {
-                metaEl.textContent = `${meta.iterations} iteration${meta.iterations > 1 ? 's' : ''} · ${meta.tool_calls} tool call${meta.tool_calls !== 1 ? 's' : ''} · ${meta.duration_ms}ms`;
+              const data = JSON.parse(line.slice(6));
+              if (data.type === 'text') {
+                fullText += data.content;
+                msgDiv.innerHTML = renderMarkdown(fullText);
+              } else if (data.type === 'tool_call') {
+                msgDiv.innerHTML += `<div class="tool-call-card"><i data-lucide="wrench"></i> Using: ${data.tool_name}</div>`;
               }
             } catch { /* skip */ }
-          } else if (currentEvent === 'error') {
-            textEl.textContent = `Error: ${data}`;
           }
-          currentEvent = null;
         }
+        messages.scrollTop = messages.scrollHeight;
       }
+      if (window.lucide) lucide.createIcons();
+    } else {
+      const data = await res.json();
+      messages.innerHTML += `<div class="chat-msg assistant">${renderMarkdown(data.response || JSON.stringify(data))}</div>`;
     }
-
-    // Final render with markdown
-    if (fullText) {
-      textEl.innerHTML = renderMarkdown(fullText, { lineBreaks: true });
-    }
-
-  } catch (err) {
-    textEl.textContent = 'Network error — is the server running?';
+    messages.scrollTop = messages.scrollHeight;
+  } catch (e) {
+    document.getElementById('typing')?.remove();
+    messages.innerHTML += `<div class="chat-msg assistant" style="border-left:3px solid var(--red)">Error: ${e.message}</div>`;
   }
-
-  chatBusy = false;
-  sendBtn.disabled = false;
-  scrollChatToBottom();
 }
 
-function appendChatMessage(role, text) {
-  const messages = document.getElementById('chat-messages');
-  const bubble = document.createElement('div');
-  bubble.className = `chat-bubble chat-${role}`;
-
-  if (role === 'user') {
-    bubble.innerHTML = `<div class="chat-text">${esc(text)}</div>`;
-  } else {
-    bubble.innerHTML = `
-      <div class="chat-agent-header"><span class="agent-avatar">🤖</span> Agent</div>
-      <div class="chat-text">${text ? renderMarkdown(text, { lineBreaks: true }) : ''}</div>
-      <div class="chat-meta"></div>
-    `;
-  }
-
-  messages.appendChild(bubble);
-  scrollChatToBottom();
-  return bubble;
-}
-
-function appendToolCard(bubble, tc) {
-  const card = document.createElement('div');
-  card.className = 'chat-tool-card';
-  card.innerHTML = `
-    <div class="tool-card-header">
-      <span class="tool-card-icon">🔧</span>
-      <strong>${esc(tc.tool)}</strong>
-      ${tc.duration_ms ? `<span class="tool-card-time">${tc.duration_ms}ms</span>` : ''}
-    </div>
-    ${tc.result ? (() => { const s = JSON.stringify(tc.result, null, 2); return `<div class="tool-card-result">${esc(s.slice(0, 200))}${s.length > 200 ? '…' : ''}</div>`; })() : ''}
-  `;
-
-  const textEl = bubble.querySelector('.chat-text');
-  bubble.insertBefore(card, textEl.nextSibling);
-}
-
-let scrollPending = false;
-function scrollChatToBottom() {
-  if (scrollPending) return;
-  scrollPending = true;
-  requestAnimationFrame(() => {
-    const container = document.getElementById('chat-messages');
-    container.scrollTop = container.scrollHeight;
-    scrollPending = false;
-  });
-}
-
-// Auto-resize chat input
-document.addEventListener('DOMContentLoaded', () => {
-  const input = document.getElementById('chat-input');
-  if (input) {
-    input.addEventListener('input', () => {
-      input.style.height = 'auto';
-      input.style.height = Math.min(input.scrollHeight, 120) + 'px';
-    });
-    input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        handleChatSubmit(e);
-      }
-    });
-  }
+// Chat input: Enter sends, Shift+Enter newline
+document.getElementById('chat-input')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
 });
 
-// Set chat mode badge on health check
-function updateChatBadge(apiKeyConfigured) {
-  const badge = document.getElementById('chat-mode-badge');
-  if (!badge) return;
-  if (apiKeyConfigured) {
-    badge.textContent = '🟢 Live Agent';
-    badge.className = 'chat-mode-badge live';
-    badge.title = 'Connected to Claude AI — full agent capabilities';
-  } else {
-    badge.textContent = '🟡 Demo Mode';
-    badge.className = 'chat-mode-badge demo';
-    badge.title = 'Pre-written responses — connect an API key for the live AI agent';
-  }
-}
+// ── Utilities ────────────────────────────────────────────────────────────────
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-function setResultHeader(title, subtitle) {
-  document.getElementById('result-title').textContent = title;
-  document.getElementById('result-subtitle').textContent = subtitle;
-}
-
-function showResult(html) {
-  const area = document.getElementById('result-area');
-  document.getElementById('result-content').innerHTML = html;
-  area.classList.remove('hidden');
-  setTimeout(() => {
-    area.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }, 100);
-}
-
-function hideResult() {
-  document.getElementById('result-area').classList.add('hidden');
-}
-
-function showError(message) {
-  setResultHeader('Error', 'Something went wrong');
-  showResult(`<div class="error-message"><span class="error-icon">⚠️</span>${esc(message)}</div>`);
-}
-
-function statRow(label, value) {
-  return `<div class="stat-row"><span class="stat-label">${label}</span><span class="stat-value">${value}</span></div>`;
-}
-
-function formatSummary(text) {
-  // Convert bullet points to styled list
-  if (text.includes('- ')) {
-    const items = text.split('\n').filter(l => l.trim().startsWith('- '));
-    return `<ul class="summary-list">${items.map(i =>
-      `<li>${renderMarkdown(i.replace(/^- /, ''))}</li>`
-    ).join('')}</ul>`;
-  }
-  return `<p class="summary-paragraph">${renderMarkdown(text)}</p>`;
-}
-
-function renderMarkdown(text, { lineBreaks = false } = {}) {
-  let html = esc(text);
-  // Bold: **text** or __text__
-  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
-  // Italic: *text* or _text_
-  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-  // Inline code: `text`
-  html = html.replace(/`(.+?)`/g, '<code class="inline-code">$1</code>');
-  // Links: [text](url) — only allow http/https (block javascript: XSS)
-  html = html.replace(/\[(.+?)\]\((https?:\/\/.+?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
-  // Line breaks
-  if (lineBreaks) html = html.replace(/\n/g, '<br>');
-  return html;
-}
-
-function flash(elementId) {
-  const el = document.getElementById(elementId);
-  el.classList.add('flash');
-  el.focus();
-  showToast('Please fill in the required field', 'error');
-  setTimeout(() => el.classList.remove('flash'), 600);
-}
-
-function esc(str) {
+function escapeHtml(str) {
   const div = document.createElement('div');
   div.textContent = str;
   return div.innerHTML;
 }
 
-// ── Expose selected functions to other scripts (sidebar.js) ─────────────────
-// Keep this as a small, explicit public API rather than leaking everything.
-window.switchToTool = switchToTool;
-window.setResultHeader = setResultHeader;
-window.showResult = showResult;
-window.showToast = showToast;
-window.renderAnalyze = renderAnalyze;
-window.renderExtract = renderExtract;
-window.renderSummarize = renderSummarize;
-window.renderProcess = renderProcess;
-window.renderPipeline = renderPipeline;
-window.renderChat = renderChat;
+function renderMarkdown(text) {
+  if (!text) return '';
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/`(.+?)`/g, '<code>$1</code>')
+    .replace(/^### (.+)$/gm, '<h4>$1</h4>')
+    .replace(/^## (.+)$/gm, '<h3>$1</h3>')
+    .replace(/^- (.+)$/gm, '<li>$1</li>')
+    .replace(/\n/g, '<br>');
+}
 
-// ── Auto-refresh the run history after every successful tool run ────────────
-// sidebar.js exposes window.runHistory.refresh(); we hook the five main
-// runners by wrapping them.
-(function wireRunHistoryRefresh() {
-  const runnerNames = [
-    'runAnalyze', 'runExtract', 'runSummarize', 'runProcess', 'runPipeline',
-  ];
-  runnerNames.forEach(name => {
-    const original = window[name];
-    if (typeof original !== 'function') return;
-    window[name] = async function (...args) {
-      const result = await original.apply(this, args);
-      if (window.runHistory?.refresh) {
-        // Small delay so the server has committed the new run before we query
-        setTimeout(() => window.runHistory.refresh(), 250);
-      }
-      return result;
-    };
-  });
-})();
+// ── Keyboard shortcuts ───────────────────────────────────────────────────────
+
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+    e.preventDefault();
+    if (currentView === 'process') runProcess();
+    else if (currentView === 'analyze') runAnalyze();
+    else if (currentView === 'extract') runExtract();
+    else if (currentView === 'summarize') runSummarize();
+    else if (currentView === 'pipeline') runPipeline();
+    else if (currentView === 'chat') sendChat();
+    else if (currentView === 'scenario') runScenario();
+  }
+});
+
+// ── Load examples ────────────────────────────────────────────────────────────
+
+function loadExample(tool, key) {
+  if (!key || !window.EXAMPLES?.[tool]?.[key]) return;
+  const data = window.EXAMPLES[tool][key];
+  const textarea = document.getElementById(`${tool}-text`);
+  if (textarea) textarea.value = data.text || '';
+  if (data.fields) document.getElementById(`${tool}-fields`).value = data.fields.join(', ');
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+
+document.addEventListener('DOMContentLoaded', () => {
+  if (window.lucide) lucide.createIcons();
+  checkHealth();
+  loadDashboard();
+});
