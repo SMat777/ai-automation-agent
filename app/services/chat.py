@@ -39,7 +39,10 @@ async def stream_agent_response(message: str, api_key: str) -> AsyncGenerator[di
         chunks, result = await loop.run_in_executor(None, iterate_stream)
 
         for chunk in chunks:
-            yield {"event": "text", "data": chunk}
+            yield {
+                "event": "text",
+                "data": json.dumps({"type": "text", "content": chunk}),
+            }
 
         if result is not None:
             for step in result.steps:
@@ -47,6 +50,8 @@ async def stream_agent_response(message: str, api_key: str) -> AsyncGenerator[di
                     yield {
                         "event": "tool_call",
                         "data": json.dumps({
+                            "type": "tool_call",
+                            "tool_name": step.tool_name,
                             "tool": step.tool_name,
                             "input": step.tool_input,
                             "result": step.tool_result,
@@ -57,6 +62,7 @@ async def stream_agent_response(message: str, api_key: str) -> AsyncGenerator[di
             yield {
                 "event": "done",
                 "data": json.dumps({
+                    "type": "done",
                     "answer": result.answer,
                     "iterations": result.iterations,
                     "tool_calls": len(result.tool_calls),
@@ -82,7 +88,10 @@ async def demo_chat_stream(message: str) -> AsyncIterator[dict]:
     response, tool_calls = _pick_demo_response(message)
 
     for char in response:
-        yield {"event": "text", "data": char}
+        yield {
+            "event": "text",
+            "data": json.dumps({"type": "text", "content": char}),
+        }
         if char in (".", "\n"):
             await asyncio.sleep(0.02)
         elif char == " ":
@@ -91,11 +100,17 @@ async def demo_chat_stream(message: str) -> AsyncIterator[dict]:
             await asyncio.sleep(0.004)
 
     for tc in tool_calls:
-        yield {"event": "tool_call", "data": json.dumps(tc)}
+        payload = {
+            "type": "tool_call",
+            "tool_name": tc.get("tool", "unknown_tool"),
+            **tc,
+        }
+        yield {"event": "tool_call", "data": json.dumps(payload)}
 
     yield {
         "event": "done",
         "data": json.dumps({
+            "type": "done",
             "answer": response,
             "iterations": 1,
             "tool_calls": len(tool_calls),
