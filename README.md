@@ -84,41 +84,50 @@ python demo.py
 - Node.js 20+
 - Anthropic API key ([get one here](https://console.anthropic.com/))
 
-### Setup
+### Setup (60 seconds)
 
 ```bash
 git clone https://github.com/SMat777/ai-automation-agent.git
 cd ai-automation-agent
 
-# Python setup
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+# One command sets up everything: venv + dependencies + database + seed data
+make install
+make reset-db
 
-# TypeScript setup
-cd automation
-npm install
-cd ..
-
-# Environment
+# Optional: add ANTHROPIC_API_KEY to enable the live agent (demo mode otherwise)
 cp .env.example .env
-# Add your ANTHROPIC_API_KEY to .env
 ```
+
+That's it — no venv activation, no system Python version fiddling, no database setup.
+All commands go through the project-local `.venv/` automatically.
 
 ### Run
 
 ```bash
-# Web UI (recommended) — open http://localhost:8000
-uvicorn server:app --reload
+make dev            # Start web UI at http://localhost:8000
+make test           # Run the Python test suite
+make lint           # Ruff + mypy
+make reset-db       # Wipe + re-migrate + re-seed the local database
+make help           # List all available commands
+```
 
-# CLI — AI agent
-python -m agent.main "Analyze this document and extract key metrics"
+For TypeScript pipeline development:
 
-# CLI — automation pipeline
+```bash
+cd automation && npm install && npm start
+```
+
+### CLI workflows
+
+```bash
+# Run the AI agent directly
+.venv/bin/python -m agent.main "Analyze this document"
+
+# Run the automation pipeline directly
 cd automation && npm start
 
-# CLI — end-to-end demo (agent + pipeline)
-python demo.py
+# End-to-end demo (agent + pipeline)
+.venv/bin/python demo.py
 ```
 
 ### Docker

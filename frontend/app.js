@@ -103,6 +103,18 @@ document.addEventListener('keydown', (e) => {
 
 // ── Tab navigation ──────────────────────────────────────────────────────────
 
+function switchToTool(toolId) {
+  // Deactivate all tabs + panels
+  document.querySelectorAll('.tool-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tool-panel').forEach(p => p.classList.remove('active'));
+
+  // Activate the chosen tab + panel
+  const tab = document.querySelector(`.tool-tab[data-tool="${toolId}"]`);
+  const panel = document.getElementById(`panel-${toolId}`);
+  if (tab) tab.classList.add('active');
+  if (panel) panel.classList.add('active');
+}
+
 document.querySelectorAll('.tool-tab').forEach(tab => {
   tab.addEventListener('click', () => {
     switchToTool(tab.dataset.tool);
@@ -367,6 +379,13 @@ function resetProcessSteps() {
 }
 
 function renderProcess(d) {
+  // Guard: old runs or failed runs may not have all four steps.
+  // Fall back to a compact summary so replay doesn't crash.
+  if (!d || !Array.isArray(d.steps) || d.steps.length < 4) {
+    renderProcessCompact(d);
+    return;
+  }
+
   const analysis = d.steps[0].data;
   const extraction = d.steps[1].data;
   const summary = d.steps[2].data;
@@ -630,6 +649,85 @@ async function runPipeline() {
   }, 'pipeline');
 
   if (data) renderPipeline(data.data);
+}
+
+// ── Process compact renderer ────────────────────────────────────────────────
+// Fallback used when a replay doesn't have the full 4-step pipeline payload.
+// Shows whatever top-level summary fields we do have, so the UI degrades
+// gracefully rather than throwing.
+
+function renderProcessCompact(d) {
+  if (!d) {
+    showResult('<p class="empty-state">No output was recorded for this run.</p>');
+    return;
+  }
+
+  const overviewRows = [];
+  if (d.document_type) overviewRows.push(['Document Type', esc(d.document_type.replace(/_/g, ' '))]);
+  if (d.fields_extracted) overviewRows.push(['Fields Extracted', esc(d.fields_extracted)]);
+  if (typeof d.entities_found === 'number') overviewRows.push(['Entities Found', d.entities_found]);
+  if (typeof d.confidence === 'number') overviewRows.push(['Confidence', `${Math.round(d.confidence * 100)}%`]);
+  if (typeof d.total_duration_ms === 'number') overviewRows.push(['Total Duration', `${d.total_duration_ms}ms`]);
+  if (typeof d.validation_errors === 'number') overviewRows.push(['Validation Errors', d.validation_errors]);
+
+  const overview = overviewRows.length > 0
+    ? `<div class="result-card"><h4>Run Summary</h4>${
+        overviewRows.map(([k, v]) => statRow(k, v)).join('')
+      }</div>`
+    : '';
+
+  const erpBlock = d.erp_output
+    ? `<div class="result-card full-width">
+         <h4>ERP-Ready Output</h4>
+         <pre class="erp-json">${esc(JSON.stringify(d.erp_output, null, 2))}</pre>
+       </div>`
+    : '';
+
+  setResultHeader(
+    'Document Processing',
+    'Compact replay — full step-by-step data was not recorded for this run.',
+  );
+
+  showResult(`
+    <div class="result-grid">
+      ${overview}
+      ${erpBlock}
+    </div>
+  `);
+}
+
+// ── Chat replay renderer ────────────────────────────────────────────────────
+// Shown when the user clicks a chat run in the history sidebar. The live
+// chat flow still streams into #chat-messages — this renders a read-only
+// transcript into the result panel instead so the original chat view is
+// not clobbered.
+
+function renderChat(d) {
+  const userMsg = d && d.message ? d.message : null;
+  const answer = d && d.answer ? d.answer : null;
+
+  if (!userMsg && !answer) {
+    showResult('<p class="empty-state">No chat content was recorded for this run.</p>');
+    return;
+  }
+
+  setResultHeader('Chat — replay', 'Read-only transcript of a previous conversation');
+
+  const userBlock = userMsg ? `
+    <div class="replay-chat-bubble user">
+      <div class="replay-chat-role">You</div>
+      <div class="replay-chat-text">${renderMarkdown(userMsg, { lineBreaks: true })}</div>
+    </div>
+  ` : '';
+
+  const agentBlock = answer ? `
+    <div class="replay-chat-bubble agent">
+      <div class="replay-chat-role">Agent</div>
+      <div class="replay-chat-text">${renderMarkdown(answer, { lineBreaks: true })}</div>
+    </div>
+  ` : '';
+
+  showResult(`<div class="replay-chat">${userBlock}${agentBlock}</div>`);
 }
 
 // ── Renderers ───────────────────────────────────────────────────────────────
@@ -1091,3 +1189,37 @@ function esc(str) {
   div.textContent = str;
   return div.innerHTML;
 }
+
+// ── Expose selected functions to other scripts (sidebar.js) ─────────────────
+// Keep this as a small, explicit public API rather than leaking everything.
+window.switchToTool = switchToTool;
+window.setResultHeader = setResultHeader;
+window.showResult = showResult;
+window.showToast = showToast;
+window.renderAnalyze = renderAnalyze;
+window.renderExtract = renderExtract;
+window.renderSummarize = renderSummarize;
+window.renderProcess = renderProcess;
+window.renderPipeline = renderPipeline;
+window.renderChat = renderChat;
+
+// ── Auto-refresh the run history after every successful tool run ────────────
+// sidebar.js exposes window.runHistory.refresh(); we hook the five main
+// runners by wrapping them.
+(function wireRunHistoryRefresh() {
+  const runnerNames = [
+    'runAnalyze', 'runExtract', 'runSummarize', 'runProcess', 'runPipeline',
+  ];
+  runnerNames.forEach(name => {
+    const original = window[name];
+    if (typeof original !== 'function') return;
+    window[name] = async function (...args) {
+      const result = await original.apply(this, args);
+      if (window.runHistory?.refresh) {
+        // Small delay so the server has committed the new run before we query
+        setTimeout(() => window.runHistory.refresh(), 250);
+      }
+      return result;
+    };
+  });
+})();
