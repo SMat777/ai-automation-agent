@@ -17,10 +17,12 @@ from app.routers import (
     chat,
     extract,
     health,
+    knowledge,
     pipeline,
     process,
     runs,
     summarize,
+    upload,
 )
 
 load_dotenv()
@@ -51,6 +53,8 @@ app.include_router(process.router, prefix=API_PREFIX)
 app.include_router(pipeline.router, prefix=API_PREFIX)
 app.include_router(chat.router, prefix=API_PREFIX)
 app.include_router(runs.router, prefix=API_PREFIX)
+app.include_router(upload.router)  # prefix built-in
+app.include_router(knowledge.router)  # prefix built-in
 
 
 # ── Frontend ─────────────────────────────────────────────────────────────────
