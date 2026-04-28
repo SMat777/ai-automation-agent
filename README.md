@@ -1,197 +1,150 @@
-# AI Automation Agent
+# AI Document Agent Platform
 
 [![CI](https://github.com/SMat777/ai-automation-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/SMat777/ai-automation-agent/actions/workflows/ci.yml)
-[![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.11](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![TypeScript 5.7](https://img.shields.io/badge/typescript-5.7-blue.svg)](https://www.typescriptlang.org/)
+[![Tests](https://img.shields.io/badge/tests-156%20passing-green.svg)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-An intelligent automation system that combines AI-driven reasoning with composable data pipelines to automate document analysis, data extraction, and reporting workflows.
+An AI-powered platform for automated document processing, email triage, and knowledge-base search — built with a ReAct agent loop, RAG pipeline, and full observability. Works across **4 industry scenarios**: Healthcare, Finance, Legal, and Customer Service.
 
 ## What It Does
 
-- **AI Agent** receives a task in natural language, reasons about which tools to use, executes them, and synthesizes results into a structured report
-- **Automation Pipeline** fetches data from REST APIs, applies composable transformations (clean, filter, map, aggregate, format), and produces structured output
-- **Integration** — the agent triggers pipelines at runtime, and pipeline results feed back into the agent for further analysis, creating a complete task-to-report loop
-
-### Example
-
-```bash
-# Run the AI agent with a task
-python -m agent.main "Analyze this document and extract key metrics"
-
-# Run the automation pipeline directly
-cd automation && npm start
-
-# Run end-to-end demo (agent + pipeline)
-python demo.py
 ```
+INGEST → REASON → ACT → TRACE
+
+1. Documents come in (upload PDF/DOCX/EML, paste text, or send email)
+2. AI agent understands, classifies, and extracts structured data
+3. Agent takes action (draft replies, validate, route, produce ERP-ready output)
+4. Everything is logged with timing, tokens, and cost
+```
+
+### Industry Scenarios
+
+| Scenario | Use Case | Key Tools |
+|----------|----------|-----------|
+| 🏥 **Clinic Email Agent** | Read clinic emails, look up orders, draft replies | `classify_email`, `lookup_order`, `draft_email_reply` |
+| 💰 **Invoice Processing** | Extract line items, validate VAT, produce ERP-ready JSON | `analyze_document`, `extract_data` |
+| ⚖️ **Contract Review** | Extract key terms, flag risks, compare with knowledge base | `search_knowledge`, `analyze_document` |
+| 📧 **Support Triage** | Classify urgency, search knowledge base, draft responses | `classify_email`, `search_knowledge`, `draft_email_reply` |
+
+**Same engine, different configuration.** Each scenario uses different system prompts and tool combinations — the architecture is reusable.
 
 ## Architecture
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│                       User / Trigger                         │
-└─────────────────────────────┬────────────────────────────────┘
-                              │
-                              v
-┌──────────────────────────────────────────────────────────────┐
-│                      AI Agent (Python)                        │
-│  ┌─────────────┐  ┌──────────────┐  ┌─────────────────────┐ │
-│  │ Agent Core   │  │ Tool Router  │  │ Prompt Templates    │ │
-│  │ (ReAct loop) │──│ (Select and  │  │ (System prompts,    │ │
-│  │              │  │  execute)    │  │  few-shot examples) │ │
-│  └─────────────┘  │              │  └─────────────────────┘ │
-│                    └──────┬───────┘                           │
-│                           │                                   │
-│  ┌────────────┐  ┌───────┴──────┐  ┌───────────────────┐    │
-│  │ Analyze    │  │ Extract      │  │ Summarize         │    │
-│  │ Document   │  │ Data         │  │ Report            │    │
-│  └────────────┘  └──────────────┘  └───────────────────┘    │
-└──────────────────────────────┬───────────────────────────────┘
-                               │
-                               v
-┌──────────────────────────────────────────────────────────────┐
-│                 Automation Pipeline (TypeScript)               │
-│  ┌─────────────┐  ┌──────────────┐  ┌─────────────────────┐ │
-│  │ Connectors  │──│ Transforms   │──│ Output              │ │
-│  │ (API/File)  │  │ (Clean/Map)  │  │ (Report/Notify)     │ │
-│  └─────────────┘  └──────────────┘  └─────────────────────┘ │
-└──────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│  Frontend (Vanilla JS + Lucide + Chart.js)                  │
+│  Dashboard · Scenarios · Upload · Chat · Knowledge Base     │
+└──────────────────────┬──────────────────────────────────────┘
+                       │  REST API + SSE
+                       ▼
+┌─────────────────────────────────────────────────────────────┐
+│  FastAPI Backend                                            │
+│  /api/upload · /api/chat · /api/process · /api/scenarios    │
+│  /api/stats  · /api/knowledge · /api/runs                   │
+├────────────────┬────────────────────────┬───────────────────┤
+│  ReAct Agent   │  RAG Engine            │  Data Pipeline    │
+│  8 tools       │  ChromaDB + OpenAI     │  TypeScript + Zod │
+│  Claude Sonnet │  embeddings            │  Composable       │
+│  Streaming     │  Chunk → Embed → Store │  transforms       │
+├────────────────┴────────────────────────┴───────────────────┤
+│  SQLite / PostgreSQL — Runs · Documents · Audit Log         │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-**Agent** (Python): Implements a ReAct (Reasoning + Acting) decision loop. The agent iteratively reasons about the task, selects tools, observes results, and decides the next action until it produces a final answer.
+## Agent Tools (8)
 
-**Pipeline** (TypeScript): Orchestrates multi-step data transformations with full type safety via Zod. Supports 5 composable transforms: clean, filter, map, aggregate, and format.
+| Tool | Purpose |
+|------|---------|
+| `analyze_document` | Detect document type, extract entities and structure |
+| `extract_data` | Pull structured key-value data from text |
+| `summarize` | Generate concise summaries (AI or extractive fallback) |
+| `run_pipeline` | Execute TypeScript data pipeline via subprocess |
+| `search_knowledge` | RAG search across uploaded documents |
+| `classify_email` | Categorize emails by intent, priority, sentiment |
+| `draft_email_reply` | Generate professional email responses |
+| `lookup_order` | Check order status in the system |
 
-**Integration**: The agent triggers automation pipelines via the `run_pipeline` tool. Pipeline results are fed back to the agent for further analysis, enabling complex multi-step workflows.
+## RAG Pipeline
 
-## Tech Stack
+Upload documents → chunk text → embed via OpenAI → store in ChromaDB → search with source citations.
 
-| Component | Technology | Purpose |
-|-----------|-----------|---------|
-| Agent core | Python, [Anthropic SDK](https://github.com/anthropics/anthropic-sdk-python) | ReAct loop with Claude API tool use |
-| Agent tools | Python | Document analysis, data extraction, summarization |
-| Pipeline | TypeScript, [Zod](https://zod.dev/) | Data transformation with runtime validation |
-| API connector | TypeScript | REST client with retry and exponential backoff |
-| Testing | [pytest](https://docs.pytest.org/), [vitest](https://vitest.dev/) | 79 tests across both components |
-| CI/CD | [GitHub Actions](https://github.com/features/actions) | Lint, type-check, and test on every push |
+```python
+# The agent uses RAG automatically when relevant
+retriever.ingest(doc_id="report-1", text=document_text, source="Q3-report.pdf")
+results = retriever.search("What were the key metrics?")
+context = retriever.format_context(results)  # Injected into Claude's context
+```
 
 ## Quick Start
 
-### Prerequisites
-
-- Python 3.11+
-- Node.js 20+
-- Anthropic API key ([get one here](https://console.anthropic.com/))
-
-### Setup (60 seconds)
-
 ```bash
+# Clone and setup
 git clone https://github.com/SMat777/ai-automation-agent.git
 cd ai-automation-agent
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
 
-# One command sets up everything: venv + dependencies + database + seed data
-make install
-make reset-db
-
-# Optional: add ANTHROPIC_API_KEY to enable the live agent (demo mode otherwise)
+# Configure
 cp .env.example .env
+# Add your ANTHROPIC_API_KEY and OPENAI_API_KEY
+
+# Initialize database
+python -c "from app.db.database import init_db; init_db()"
+
+# Run
+make dev  # Starts FastAPI on http://localhost:8000
 ```
 
-That's it — no venv activation, no system Python version fiddling, no database setup.
-All commands go through the project-local `.venv/` automatically.
-
-### Run
-
-```bash
-make dev            # Start web UI at http://localhost:8000
-make test           # Run the Python test suite
-make lint           # Ruff + mypy
-make reset-db       # Wipe + re-migrate + re-seed the local database
-make help           # List all available commands
-```
-
-For TypeScript pipeline development:
+### TypeScript Pipeline
 
 ```bash
 cd automation && npm install && npm start
 ```
 
-### CLI workflows
+## Testing
 
 ```bash
-# Run the AI agent directly
-.venv/bin/python -m agent.main "Analyze this document"
-
-# Run the automation pipeline directly
-cd automation && npm start
-
-# End-to-end demo (agent + pipeline)
-.venv/bin/python demo.py
+make test      # 156+ Python tests
+make test-ts   # 36 TypeScript tests
+make lint      # Ruff + mypy
 ```
 
-### Docker
+TDD was the development workflow — tests were written before implementation for every module.
 
-```bash
-# Build and run both components
-docker compose up --build
+## Tech Stack
 
-# Run agent only
-docker compose run agent python -m agent.main "Analyze this document"
-
-# Run pipeline only
-docker compose run pipeline
-```
-
-### Test
-
-```bash
-# Python tests (43 tests)
-pytest tests/agent/ -v
-
-# TypeScript tests (36 tests)
-cd automation && npm test
-```
+| Layer | Technology |
+|-------|-----------|
+| AI Agent | Claude Sonnet 4 via Anthropic SDK, ReAct loop |
+| RAG | ChromaDB, OpenAI text-embedding-3-small |
+| Backend | FastAPI, SQLAlchemy 2.0, Alembic, Pydantic |
+| Frontend | Vanilla JS, Lucide Icons, Chart.js (no build step) |
+| Pipeline | TypeScript, Zod, composable transforms |
+| Database | SQLite (dev) / PostgreSQL (prod) |
+| Testing | pytest, vitest, TDD workflow |
+| CI/CD | GitHub Actions, Docker |
 
 ## Project Structure
 
 ```
-ai-automation-agent/
-├── agent/                  # Python — AI Agent
-│   ├── main.py             # Entry point and agent loop
-│   ├── agent.py            # Agent core with decision logic
-│   ├── tools/              # Tool implementations
-│   │   ├── analyze.py      # Document analysis (type, entities, key points)
-│   │   ├── extract.py      # Data extraction (key-value, table, list)
-│   │   ├── summarize.py    # Report summarization
-│   │   └── pipeline.py     # Pipeline trigger tool
-│   └── prompts/
-│       └── system.py       # System prompts
-├── automation/             # TypeScript — Automation Pipeline
-│   ├── src/
-│   │   ├── index.ts        # Pipeline entry point and demo
-│   │   ├── pipeline.ts     # Workflow orchestration
-│   │   ├── connectors/
-│   │   │   └── api.ts      # REST API connector with retry
-│   │   └── transforms/     # Data transformations
-│   │       ├── clean.ts    # Deduplication and null removal
-│   │       ├── filter.ts   # Range-based filtering
-│   │       ├── map.ts      # Field selection and computed fields
-│   │       ├── aggregate.ts # Grouping and aggregation
-│   │       └── format.ts   # Markdown/CSV formatting
-├── tests/                  # Test suites
-│   ├── agent/              # Python agent tests (43 tests)
-│   └── automation/         # TypeScript pipeline tests (36 tests)
-├── docs/
-│   └── ARCHITECTURE.md     # Technical architecture documentation
-├── demo.py                 # End-to-end integration demo
-├── .github/workflows/
-│   └── ci.yml              # CI/CD pipeline (lint, test, typecheck)
-├── requirements.txt        # Python dependencies
-├── CONTRIBUTING.md         # Development workflow
-└── LICENSE                 # MIT
+agent/              # ReAct agent + 8 tools
+app/
+  ├── routers/      # API endpoints (12 routes)
+  ├── services/
+  │   ├── rag/      # Chunker, embedder, vectorstore, retriever
+  │   ├── extractors/  # PDF, DOCX, EML, text extractors
+  │   ├── scenarios/   # Cross-industry scenario configs
+  │   └── cost.py      # Token-to-USD cost calculation
+  ├── models/       # SQLAlchemy models (User, Run, AuditLog, Document)
+  └── db/           # Database engine + sessions
+automation/         # TypeScript data pipeline
+frontend/           # Vanilla JS SPA
+tests/              # 156+ Python + 36 TypeScript tests
+docs/               # Architecture docs + ADRs
 ```
 
 ## License
 
-MIT — see [LICENSE](LICENSE) for details.
+MIT
