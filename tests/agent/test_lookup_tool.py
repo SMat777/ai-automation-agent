@@ -1,7 +1,5 @@
 """Tests for the order lookup tool (mock data)."""
 
-import pytest
-
 from agent.tools.lookup import LOOKUP_TOOL, handle_lookup_order
 
 

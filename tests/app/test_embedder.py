@@ -2,7 +2,6 @@
 
 from unittest.mock import patch, MagicMock
 
-import pytest
 
 from app.services.rag.embedder import embed_texts, embed_single
 

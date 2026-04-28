@@ -1,7 +1,5 @@
 """Tests for email classification and drafting tools."""
 
-import pytest
-
 from agent.tools.email_tools import (
     EMAIL_CLASSIFY_TOOL,
     EMAIL_DRAFT_TOOL,

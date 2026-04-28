@@ -2,8 +2,6 @@
 
 from unittest.mock import patch, MagicMock
 
-import pytest
-
 from agent.tools.knowledge import KNOWLEDGE_TOOL, handle_search_knowledge
 
 

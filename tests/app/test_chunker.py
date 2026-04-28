@@ -1,8 +1,7 @@
 """Tests for the RAG text chunker."""
 
-import pytest
 
-from app.services.rag.chunker import chunk_text, Chunk
+from app.services.rag.chunker import chunk_text
 
 
 class TestChunkText:

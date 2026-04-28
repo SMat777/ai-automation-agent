@@ -127,7 +127,7 @@ def handle_draft_email(params: dict[str, Any]) -> dict[str, Any]:
     draft_parts = [
         greeting,
         "",
-        f"Thank you for reaching out to us.",
+        "Thank you for reaching out to us.",
         "",
         f"Regarding your inquiry: {context}",
         "",

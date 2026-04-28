@@ -73,7 +73,7 @@ def main() -> None:
         print("FINAL REPORT")
         print("=" * 60)
         print(result.answer)
-        print(f"\n--- Stats ---")
+        print("\n--- Stats ---")
         print(f"Iterations: {result.iterations}")
         print(f"Tool calls: {len(result.tool_calls)}")
         for step in result.tool_calls:
