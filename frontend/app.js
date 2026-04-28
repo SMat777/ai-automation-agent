@@ -86,7 +86,7 @@ async function checkHealth() {
     const res = await fetch('/api/health');
     const data = await res.json();
     dot.className = 'status-dot ok';
-    text.textContent = data.api_key ? 'Live Mode' : 'Demo Mode';
+    text.textContent = data.api_key_configured ? 'Live Mode' : 'Demo Mode';
   } catch {
     dot.className = 'status-dot err';
     text.textContent = 'Offline';
