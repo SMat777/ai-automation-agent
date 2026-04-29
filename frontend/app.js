@@ -278,52 +278,42 @@ function sendScenarioPrompt(btn) {
 async function runScenario() {
   const text = document.getElementById('scenario-text').value.trim();
   if (!text) { showToast('Enter text or load demo data', 'error'); return; }
+  if (!currentScenario?.id) { showToast('Select a scenario first', 'error'); return; }
 
   const output = document.getElementById('scenario-output');
   output.innerHTML = '<div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>';
 
+  const btn = document.getElementById('btn-scenario-run');
+  if (btn) btn.disabled = true;
+
   try {
-    const res = await fetch('/api/chat', {
+    const res = await fetch(`/api/scenarios/${currentScenario.id}/run`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: text }),
+      body: JSON.stringify({ input_text: text }),
     });
 
-    if (res.headers.get('content-type')?.includes('text/event-stream')) {
-      // SSE streaming
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let fullText = '';
+    const data = await res.json();
 
-      output.innerHTML = '<div class="chat-msg assistant"></div>';
-      const msgEl = output.querySelector('.chat-msg');
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n');
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(line.slice(6));
-              if (data.type === 'text') {
-                fullText += data.content;
-                msgEl.innerHTML = renderMarkdown(fullText);
-              } else if (data.type === 'tool_call') {
-                msgEl.innerHTML += `<div class="tool-call-card"><i data-lucide="wrench"></i> ${data.tool_name}</div>`;
-              }
-            } catch { /* skip malformed SSE */ }
-          }
-        }
-      }
-      if (window.lucide) lucide.createIcons();
-    } else {
-      const data = await res.json();
-      output.innerHTML = `<div class="chat-msg assistant">${renderMarkdown(data.response || JSON.stringify(data, null, 2))}</div>`;
+    if (!res.ok) {
+      output.innerHTML = `<div class="chat-msg assistant" style="border-left: 3px solid var(--red)">Error: ${escapeHtml(data.detail || 'Scenario run failed')}</div>`;
+      return;
     }
+
+    const payload = data.data || data;
+    if (window.renderScenarioResult) {
+      output.innerHTML = renderScenarioResult(payload);
+    } else {
+      output.innerHTML = `<pre>${escapeHtml(JSON.stringify(payload, null, 2))}</pre>`;
+    }
+
+    showToast('Scenario run complete', 'success');
+    if (window.lucide) lucide.createIcons();
   } catch (e) {
-    output.innerHTML = `<div class="chat-msg assistant" style="border-left: 3px solid var(--red)">Error: ${e.message}</div>`;
+    output.innerHTML = `<div class="chat-msg assistant" style="border-left: 3px solid var(--red)">Error: ${escapeHtml(e.message)}</div>`;
+    showToast('Scenario run failed', 'error');
+  } finally {
+    if (btn) btn.disabled = false;
   }
 }
 

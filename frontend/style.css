@@ -374,6 +374,140 @@ body {
   border-radius: var(--r);
   padding: 1.2rem;
   min-height: 300px;
+  overflow: auto;
+}
+
+.scenario-result {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.result-header h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.status-pill {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+
+.status-pill.ok {
+  background: rgba(76, 175, 125, 0.15);
+  color: var(--green);
+  border-color: rgba(76, 175, 125, 0.3);
+}
+
+.status-pill.warn {
+  background: rgba(212, 160, 56, 0.16);
+  color: #e2b457;
+  border-color: rgba(212, 160, 56, 0.35);
+}
+
+.result-grid {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.result-grid.two-col {
+  grid-template-columns: 1fr 1fr;
+}
+
+.result-card {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 0.75rem;
+}
+
+.result-card h4 {
+  margin: 0 0 0.55rem;
+  font-size: 0.82rem;
+  color: var(--text-2);
+  letter-spacing: 0.01em;
+}
+
+.metric-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  margin-bottom: 0.35rem;
+}
+
+.metric-row span { color: var(--text-3); }
+
+.kv-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.kv-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.7rem;
+  font-size: 0.82rem;
+}
+
+.kv-item span { color: var(--text-3); }
+.kv-item strong { color: var(--text-1); text-align: right; }
+
+.issue-list {
+  margin: 0.35rem 0 0;
+  padding-left: 1rem;
+  color: var(--text-2);
+  font-size: 0.8rem;
+}
+
+.muted {
+  color: var(--text-3);
+  font-size: 0.8rem;
+  margin: 0;
+}
+
+.entity-group {
+  margin-top: 0.45rem;
+}
+
+.entity-group label {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--text-3);
+  margin-bottom: 0.3rem;
+}
+
+.entity-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.entity-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.73rem;
+  background: var(--accent-soft);
+  border: 1px solid rgba(108,127,216,0.25);
+  color: var(--accent);
+}
+
+.draft-box {
+  font-size: 0.85rem;
+  line-height: 1.5;
 }
 
 /* ── Buttons ──────────────────────────────────────────────────────────────── */
@@ -920,6 +1054,7 @@ textarea:focus, input:focus, select:focus {
   .kpi-grid { grid-template-columns: repeat(2, 1fr); }
   .chart-grid { grid-template-columns: 1fr; }
   .scenario-workspace { grid-template-columns: 1fr; }
+  .result-grid.two-col { grid-template-columns: 1fr; }
   .about-features { grid-template-columns: 1fr; }
 }
 
