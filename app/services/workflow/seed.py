@@ -8,6 +8,7 @@ the engine's capabilities and serve as templates for user-created workflows.
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -17,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 # ── Preset workflow definitions ──────────────────────────────────────────────
 
-PRESET_WORKFLOWS = [
+PRESET_WORKFLOWS: list[dict[str, Any]] = [
     {
         "name": "Document Processing",
         "description": (

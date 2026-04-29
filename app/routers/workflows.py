@@ -23,7 +23,7 @@ from app.services.workflow.engine import WorkflowEngine
 router = APIRouter(prefix="/api", tags=["workflows"])
 
 # Single engine instance — stateless, so safe to share.
-_engine = WorkflowEngine(tool_handlers=TOOL_HANDLERS)
+_engine = WorkflowEngine(tool_handlers=TOOL_HANDLERS)  # type: ignore[arg-type]
 
 
 # ── Request schemas ──────────────────────────────────────────────────────────
