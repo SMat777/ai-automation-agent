@@ -8,5 +8,6 @@ from app.models.audit_log import AuditLog
 from app.models.document import Document
 from app.models.run import Run
 from app.models.user import User
+from app.models.workflow import Workflow, WorkflowStep
 
-__all__ = ["AuditLog", "Document", "Run", "User"]
+__all__ = ["AuditLog", "Document", "Run", "User", "Workflow", "WorkflowStep"]
