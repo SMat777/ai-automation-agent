@@ -444,11 +444,13 @@ let currentWorkflowId = null;
 async function loadWorkflows() {
   const list = document.getElementById('workflow-list');
   const detail = document.getElementById('workflow-detail');
+  const create = document.getElementById('workflow-create');
   if (!list) return;
 
-  // Show list, hide detail
+  // Show list, hide detail and create form
   list.classList.remove('hidden');
   detail.classList.add('hidden');
+  if (create) create.classList.add('hidden');
 
   try {
     const res = await fetch('/api/workflows');
@@ -462,7 +464,16 @@ async function loadWorkflows() {
           <p>No workflows configured yet</p>
         </div>`;
     } else {
-      list.innerHTML = workflows.map(w => `
+      list.innerHTML = `
+        <button class="workflow-card new-workflow-card" onclick="showWorkflowCreate()" type="button">
+          <div class="workflow-card-icon"><i data-lucide="plus-circle"></i></div>
+          <div class="workflow-card-info">
+            <div class="workflow-card-title"><strong>New Workflow</strong></div>
+            <span class="workflow-card-desc">Create a custom multi-step automation</span>
+          </div>
+          <div class="workflow-card-arrow"><i data-lucide="chevron-right"></i></div>
+        </button>
+      ` + workflows.map(w => `
         <button class="workflow-card" onclick="openWorkflow(${w.id})" type="button">
           <div class="workflow-card-icon">
             <i data-lucide="${w.is_preset ? 'shield' : 'git-branch'}"></i>
@@ -509,6 +520,10 @@ async function openWorkflow(id) {
     document.getElementById('wf-detail-badge').textContent = wf.is_preset ? 'Preset' : 'Custom';
     document.getElementById('wf-detail-badge').className = `status-pill ${wf.is_preset ? 'ok' : 'info'}`;
 
+    // Show delete button only for custom (non-preset) workflows
+    const deleteBtn = document.getElementById('wf-delete-btn');
+    if (deleteBtn) deleteBtn.style.display = wf.is_preset ? 'none' : 'inline-flex';
+
     // Render steps visualization
     const stepsViz = document.getElementById('wf-steps-viz');
     const steps = wf.steps || [];
@@ -552,7 +567,154 @@ async function openWorkflow(id) {
 function showWorkflowList() {
   document.getElementById('workflow-list').classList.remove('hidden');
   document.getElementById('workflow-detail').classList.add('hidden');
+  const create = document.getElementById('workflow-create');
+  if (create) create.classList.add('hidden');
   currentWorkflowId = null;
+}
+
+const AVAILABLE_TOOLS = [
+  'analyze_document', 'extract_data', 'summarize', 'run_pipeline',
+  'search_knowledge', 'classify_email', 'draft_email_reply',
+  'lookup_order', 'scrape_url',
+];
+
+let wfStepCounter = 0;
+
+function showWorkflowCreate() {
+  document.getElementById('workflow-list').classList.add('hidden');
+  document.getElementById('workflow-detail').classList.add('hidden');
+  document.getElementById('workflow-create').classList.remove('hidden');
+
+  // Reset form
+  document.getElementById('wf-create-name').value = '';
+  document.getElementById('wf-create-desc').value = '';
+  document.getElementById('wf-create-onerror').value = 'stop';
+  document.getElementById('wf-create-steps').innerHTML = '';
+  wfStepCounter = 0;
+
+  // Add one default step
+  addWorkflowStep();
+  if (window.lucide) lucide.createIcons();
+}
+
+function hideWorkflowCreate() {
+  loadWorkflows();
+}
+
+function addWorkflowStep() {
+  const container = document.getElementById('wf-create-steps');
+  const idx = wfStepCounter++;
+  const toolOptions = AVAILABLE_TOOLS.map(t => `<option value="${t}">${t}</option>`).join('');
+
+  const stepHtml = `
+    <div class="wf-create-step" id="wf-new-step-${idx}">
+      <div class="wf-create-step-header">
+        <span class="wf-create-step-num">${idx + 1}</span>
+        <button class="btn-icon" onclick="removeWorkflowStep(${idx})" type="button" title="Remove step"><i data-lucide="x"></i></button>
+      </div>
+      <div class="wf-create-step-fields">
+        <div class="input-group compact">
+          <label>Step ID</label>
+          <input type="text" class="wf-step-id-input" placeholder="e.g. analyze" maxlength="50">
+        </div>
+        <div class="input-group compact">
+          <label>Tool</label>
+          <select class="wf-step-tool-input">${toolOptions}</select>
+        </div>
+        <div class="input-group compact">
+          <label>Input template (JSON)</label>
+          <input type="text" class="wf-step-template-input" placeholder='{"text": "$input.text"}' value='{"text": "$input.text"}'>
+        </div>
+      </div>
+    </div>
+  `;
+  container.insertAdjacentHTML('beforeend', stepHtml);
+  renumberWorkflowSteps();
+  if (window.lucide) lucide.createIcons();
+}
+
+function removeWorkflowStep(idx) {
+  const el = document.getElementById(`wf-new-step-${idx}`);
+  if (el) el.remove();
+  renumberWorkflowSteps();
+}
+
+function renumberWorkflowSteps() {
+  const steps = document.querySelectorAll('#wf-create-steps .wf-create-step');
+  steps.forEach((step, i) => {
+    const num = step.querySelector('.wf-create-step-num');
+    if (num) num.textContent = i + 1;
+  });
+}
+
+async function submitWorkflowCreate() {
+  const name = document.getElementById('wf-create-name').value.trim();
+  if (!name) { showToast('Workflow name is required', 'error'); return; }
+
+  const description = document.getElementById('wf-create-desc').value.trim();
+  const onError = document.getElementById('wf-create-onerror').value;
+
+  const stepEls = document.querySelectorAll('#wf-create-steps .wf-create-step');
+  if (stepEls.length === 0) { showToast('Add at least one step', 'error'); return; }
+
+  const steps = [];
+  for (const el of stepEls) {
+    const stepId = el.querySelector('.wf-step-id-input').value.trim();
+    const toolName = el.querySelector('.wf-step-tool-input').value;
+    const templateRaw = el.querySelector('.wf-step-template-input').value.trim();
+
+    if (!stepId) { showToast('Every step needs a Step ID', 'error'); return; }
+
+    let inputTemplate = {};
+    if (templateRaw) {
+      try { inputTemplate = JSON.parse(templateRaw); }
+      catch { showToast(`Invalid JSON in step "${stepId}"`, 'error'); return; }
+    }
+
+    steps.push({ step_id: stepId, tool_name: toolName, input_template: inputTemplate });
+  }
+
+  const btn = document.getElementById('btn-wf-create');
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('/api/workflows', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, description, on_error: onError, steps }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      showToast(err.detail || 'Failed to create workflow', 'error');
+      btn.disabled = false;
+      return;
+    }
+
+    showToast('Workflow created', 'success');
+    loadWorkflows();
+  } catch (e) {
+    showToast(`Error: ${e.message}`, 'error');
+  }
+  btn.disabled = false;
+}
+
+async function deleteWorkflow() {
+  if (!currentWorkflowId) return;
+  if (!confirm('Delete this workflow?')) return;
+
+  try {
+    const res = await fetch(`/api/workflows/${currentWorkflowId}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const err = await res.json();
+      showToast(err.detail || 'Cannot delete workflow', 'error');
+      return;
+    }
+    showToast('Workflow deleted', 'success');
+    loadWorkflows();
+  } catch (e) {
+    showToast(`Error: ${e.message}`, 'error');
+  }
 }
 
 async function runWorkflow() {
@@ -705,7 +867,7 @@ async function runProcess() {
       s.querySelector('.step-time').textContent = `${Math.round(elapsed / 4 * (i + 1))}ms`;
     });
 
-    result.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+    result.innerHTML = renderProcessResult(data);
     showToast('Document processed successfully', 'success');
   } catch (e) {
     result.innerHTML = `<div style="color:var(--red)">Error: ${e.message}</div>`;
@@ -966,6 +1128,126 @@ function renderSummarizeResult(data) {
       </div>
     </div>
   `;
+}
+
+function renderProcessResult(data) {
+  const d = data.data || data;
+  const steps = d.steps || [];
+  const docType = d.document_type || 'unknown';
+  const confidence = d.confidence || 0;
+  const fieldsExtracted = d.fields_extracted || '0/0';
+  const entitiesFound = d.entities_found || 0;
+  const validationErrors = d.validation_errors || 0;
+  const totalMs = d.total_duration_ms || 0;
+  const erp = d.erp_output || {};
+
+  // Confidence color
+  const confPct = Math.round(confidence * 100);
+  const confClass = confPct >= 70 ? 'ok' : confPct >= 40 ? 'warn' : 'err';
+
+  // Validation issues from the validate step
+  const validateStep = steps.find(s => s.name === 'validate');
+  const issues = validateStep?.data?.issues || [];
+
+  // Summary from summarize step
+  const sumStep = steps.find(s => s.name === 'summarize');
+  const summary = sumStep?.data?.summary || '';
+  const smartSummary = sumStep?.data?.smart_summary || '';
+
+  // Extracted fields from ERP output
+  const extractedFields = Object.entries(erp.extracted_fields || {});
+  const entities = erp.entities || {};
+
+  let html = `
+    <div class="scenario-result">
+      <div class="result-header">
+        <h3>Processing Result</h3>
+        <div style="display:flex;gap:0.4rem">
+          <span class="status-pill ok">${escapeHtml(docType)}</span>
+          <span class="status-pill ${confClass}">${confPct}% confidence</span>
+          <span class="status-pill ${validationErrors === 0 ? 'ok' : 'warn'}">${validationErrors === 0 ? '✓ Valid' : validationErrors + ' issue(s)'}</span>
+        </div>
+      </div>
+
+      <div class="result-grid two-col">
+        <div class="result-card">
+          <h4>Pipeline Stats</h4>
+          <div class="metric-row"><span>Document type</span><strong>${escapeHtml(docType)}</strong></div>
+          <div class="metric-row"><span>Fields extracted</span><strong>${escapeHtml(fieldsExtracted)}</strong></div>
+          <div class="metric-row"><span>Entities found</span><strong>${entitiesFound}</strong></div>
+          <div class="metric-row"><span>Total duration</span><strong>${totalMs}ms</strong></div>
+        </div>
+        <div class="result-card">
+          <h4>Summary</h4>
+          ${smartSummary ? `<p style="font-size:0.85rem;line-height:1.5;margin:0 0 0.5rem">${escapeHtml(smartSummary)}</p>` : ''}
+          ${summary ? `<div style="font-size:0.8rem;color:var(--text-2)">${renderMarkdown(summary)}</div>` : '<p class="muted">No summary available.</p>'}
+        </div>
+      </div>`;
+
+  // Extracted fields
+  if (extractedFields.length > 0) {
+    html += `
+      <div class="result-card">
+        <h4>Extracted Fields</h4>
+        <div class="extract-table">
+          ${extractedFields.map(([key, val]) => `
+            <div class="extract-row">
+              <span class="extract-field">${escapeHtml(key)}</span>
+              <span class="extract-value found">${escapeHtml(String(val))}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>`;
+  }
+
+  // Entities
+  const entityGroups = Object.entries(entities).filter(([, v]) => v.length > 0);
+  if (entityGroups.length > 0) {
+    html += `
+      <div class="result-card">
+        <h4>Entities</h4>
+        ${entityGroups.map(([type, items]) => `
+          <div style="margin-bottom:0.3rem">
+            <span style="font-size:0.7rem;color:var(--text-3);text-transform:uppercase;font-weight:600">${escapeHtml(type)}</span>
+            <div style="display:flex;flex-wrap:wrap;gap:0.3rem;margin-top:0.2rem">
+              ${items.map(item => `<span class="status-pill ok" style="font-size:0.72rem">${escapeHtml(item)}</span>`).join('')}
+            </div>
+          </div>
+        `).join('')}
+      </div>`;
+  }
+
+  // Validation issues
+  if (issues.length > 0) {
+    html += `
+      <div class="result-card">
+        <h4>Validation</h4>
+        ${issues.map(issue => {
+          const icon = issue.severity === 'error' ? '🔴' : issue.severity === 'warning' ? '🟡' : issue.severity === 'pass' ? '🟢' : 'ℹ️';
+          return `<div class="metric-row"><span>${icon} ${escapeHtml(issue.field || '')}</span><strong style="font-weight:normal;font-size:0.8rem">${escapeHtml(issue.message)}</strong></div>`;
+        }).join('')}
+      </div>`;
+  }
+
+  // Step timing
+  html += `
+      <div class="result-card">
+        <h4>Pipeline Steps</h4>
+        ${steps.map(step => `
+          <div class="metric-row">
+            <span>
+              <span style="color:${step.status === 'done' ? 'var(--green)' : 'var(--red)'}">
+                ${step.status === 'done' ? '✓' : '✗'}
+              </span>
+              ${escapeHtml(step.name)}
+            </span>
+            <strong>${step.duration_ms}ms</strong>
+          </div>
+        `).join('')}
+      </div>
+    </div>`;
+
+  return html;
 }
 
 // ── Chat ─────────────────────────────────────────────────────────────────────

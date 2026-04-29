@@ -1021,6 +1021,54 @@ textarea:focus, input:focus, select:focus {
 .workflow-run-result:empty { display: none; }
 .workflow-run-result { margin-top: 1rem; }
 
+/* ── Workflow Create Form ─────────────────────────────────────────────────── */
+
+.workflow-create.hidden { display: none; }
+.workflow-create h2 { font-size: 1.1rem; margin-bottom: 1rem; }
+
+.wf-create-form { display: flex; flex-direction: column; gap: 0.8rem; }
+
+.wf-create-steps-section { margin-top: 0.5rem; }
+.wf-create-steps-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+.wf-create-steps-header h3 { font-size: 0.9rem; margin: 0; }
+
+.btn-small {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  padding: 0.3rem 0.6rem; font-size: 0.75rem; font-weight: 600;
+  background: var(--accent-soft); color: var(--accent);
+  border: 1px solid rgba(108,127,216,0.25); border-radius: 6px; cursor: pointer;
+}
+.btn-small:hover { background: var(--accent); color: #fff; }
+.btn-small i { width: 14px; height: 14px; }
+.btn-small.danger { background: rgba(239,83,80,0.1); color: var(--red); border-color: rgba(239,83,80,0.25); }
+.btn-small.danger:hover { background: var(--red); color: #fff; }
+
+.btn-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; padding: 0;
+  background: transparent; border: 1px solid var(--border); border-radius: 6px;
+  color: var(--text-3); cursor: pointer;
+}
+.btn-icon:hover { background: rgba(239,83,80,0.1); color: var(--red); border-color: rgba(239,83,80,0.25); }
+.btn-icon i { width: 14px; height: 14px; }
+
+.wf-create-step {
+  background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+  padding: 0.7rem; margin-bottom: 0.5rem;
+}
+.wf-create-step-header {
+  display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;
+}
+.wf-create-step-num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--accent); color: #fff; font-size: 0.7rem; font-weight: 700;
+}
+.wf-create-step-fields { display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 0.5rem; }
+
+.new-workflow-card { border-style: dashed !important; }
+.new-workflow-card .workflow-card-icon i { color: var(--text-3) !important; }
+
 .wf-step-indicator {
   display: inline-flex;
   width: 18px; height: 18px;

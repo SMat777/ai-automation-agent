@@ -219,6 +219,44 @@
           <p class="view-subtitle">Multi-step tool automation with variable passing</p>
         </div>
 
+        <!-- Workflow create form (hidden by default) -->
+        <div id="workflow-create" class="workflow-create hidden">
+          <button class="back-btn" onclick="hideWorkflowCreate()" type="button">
+            <i data-lucide="arrow-left"></i> All Workflows
+          </button>
+          <h2>Create Workflow</h2>
+          <div class="wf-create-form">
+            <div class="input-group">
+              <label for="wf-create-name">Name</label>
+              <input type="text" id="wf-create-name" placeholder="My workflow" maxlength="100">
+            </div>
+            <div class="input-group">
+              <label for="wf-create-desc">Description</label>
+              <input type="text" id="wf-create-desc" placeholder="What does this workflow do?" maxlength="500">
+            </div>
+            <div class="input-group compact">
+              <label for="wf-create-onerror">On error</label>
+              <select id="wf-create-onerror">
+                <option value="stop">Stop</option>
+                <option value="skip">Skip</option>
+              </select>
+            </div>
+
+            <div class="wf-create-steps-section">
+              <div class="wf-create-steps-header">
+                <h3>Steps</h3>
+                <button class="btn-small" onclick="addWorkflowStep()" type="button"><i data-lucide="plus"></i> Add Step</button>
+              </div>
+              <div id="wf-create-steps"></div>
+            </div>
+
+            <button class="btn-run" id="btn-wf-create" onclick="submitWorkflowCreate()" type="button">
+              <i data-lucide="save"></i>
+              <span class="btn-label">Create Workflow</span>
+            </button>
+          </div>
+        </div>
+
         <!-- Workflow list -->
         <div id="workflow-list" class="workflow-list">
           <div class="empty-state">
@@ -239,6 +277,7 @@
             </div>
             <div class="workflow-detail-badges">
               <span class="status-pill ok" id="wf-detail-badge"></span>
+              <button class="btn-small danger" id="wf-delete-btn" onclick="deleteWorkflow()" type="button" style="display:none"><i data-lucide="trash-2"></i> Delete</button>
             </div>
           </div>
 
