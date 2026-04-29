@@ -235,6 +235,61 @@ class TestExtractAuto:
         assert result["strategy"] == "auto"
 
 
+class TestExtractAiPath:
+    """Verify AI-assisted extraction when regex finds insufficient fields."""
+
+    def test_ai_fills_missing_fields(self) -> None:
+        """When regex misses fields, Claude should fill them in."""
+        mock_response = MagicMock()
+        mock_response.content = [MagicMock(
+            text='{"deadline": "March 15, 2026", "budget": "$50,000"}'
+        )]
+
+        with patch("agent.tools.extract.Anthropic") as mock_cls:
+            mock_cls.return_value.messages.create.return_value = mock_response
+            result = handle_extract(
+                "The project involves building a new website for the client.",
+                fields=["company", "deadline", "budget"],
+                api_key="test-key",
+            )
+
+        assert result["method"] == "ai"
+        assert result["extracted"]["deadline"] == "March 15, 2026"
+        assert result["extracted"]["budget"] == "$50,000"
+
+    def test_fallback_when_no_api_key(self) -> None:
+        """Without api_key, should use rule-based only."""
+        result = handle_extract(
+            "Company: Test Corp",
+            fields=["company", "missing_field"],
+        )
+        assert result["method"] == "rule_based"
+
+    def test_no_ai_when_regex_finds_enough(self) -> None:
+        """If regex finds >50% of fields, AI is not called."""
+        result = handle_extract(
+            "Company: Acme\nLocation: Aarhus\nRole: Developer",
+            fields=["Company", "Location", "Role"],
+            api_key="test-key",
+        )
+        # All fields found by regex — AI should not be called
+        assert result["method"] == "rule_based"
+        assert result["fields_found"] == 3
+
+    def test_falls_back_on_api_error(self) -> None:
+        """If Claude API fails, should return regex-only results."""
+        with patch("agent.tools.extract.Anthropic") as mock_cls:
+            mock_cls.return_value.messages.create.side_effect = Exception("API down")
+            result = handle_extract(
+                "Some unstructured text about a project.",
+                fields=["company", "deadline", "budget"],
+                api_key="test-key",
+            )
+
+        assert result["method"] == "rule_based"
+        assert "fields_found" in result
+
+
 # ── Summarize Tool ───────────────────────────────────────────────────────────
 
 
