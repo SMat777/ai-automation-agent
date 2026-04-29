@@ -16,6 +16,7 @@ from app.db.base import Base
 from app.main import app
 from app.models.workflow import Workflow, WorkflowStep
 from app.services.workflow.engine import WorkflowEngine
+from app.services.workflow.seed import seed_preset_workflows
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -449,3 +450,39 @@ class TestWorkflowAPI:
         response = client.post("/api/workflows/999/run", json={"input": {}})
 
         assert response.status_code == 404
+
+
+# ── Seed tests ───────────────────────────────────────────────────────────────
+
+
+class TestSeedPresetWorkflows:
+    """Preset workflows are seeded correctly."""
+
+    def test_seeds_three_preset_workflows(self, db_session: Session) -> None:
+        count = seed_preset_workflows(db_session)
+
+        assert count == 3
+        workflows = db_session.query(Workflow).filter(Workflow.is_preset.is_(True)).all()
+        assert len(workflows) == 3
+
+        names = {w.name for w in workflows}
+        assert "Document Processing" in names
+        assert "Email Triage" in names
+        assert "Research & Summarize" in names
+
+    def test_seed_is_idempotent(self, db_session: Session) -> None:
+        """Running seed twice does not duplicate workflows."""
+        first = seed_preset_workflows(db_session)
+        second = seed_preset_workflows(db_session)
+
+        assert first == 3
+        assert second == 0
+        total = db_session.query(Workflow).filter(Workflow.is_preset.is_(True)).count()
+        assert total == 3
+
+    def test_preset_workflows_have_steps(self, db_session: Session) -> None:
+        seed_preset_workflows(db_session)
+
+        workflows = db_session.query(Workflow).filter(Workflow.is_preset.is_(True)).all()
+        for w in workflows:
+            assert len(w.steps) >= 2, f"Workflow '{w.name}' should have at least 2 steps"
