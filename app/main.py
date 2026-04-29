@@ -25,6 +25,7 @@ from app.routers import (
     stats,
     summarize,
     upload,
+    workflows,
 )
 
 load_dotenv()
@@ -59,6 +60,7 @@ app.include_router(upload.router)  # prefix built-in
 app.include_router(knowledge.router)  # prefix built-in
 app.include_router(scenarios.router)  # prefix built-in
 app.include_router(stats.router)  # prefix built-in
+app.include_router(workflows.router)  # prefix built-in
 
 
 # ── Frontend ─────────────────────────────────────────────────────────────────

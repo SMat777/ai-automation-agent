@@ -1,4 +1,4 @@
-"""Tests for the workflow engine — validation, execution, variable passing, error handling."""
+"""Tests for the workflow engine — validation, execution, variable passing, error handling, and API."""
 
 from __future__ import annotations
 
@@ -6,7 +6,15 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
+from app.db import get_db
+from app.db.base import Base
+from app.main import app
+from app.models.workflow import Workflow, WorkflowStep
 from app.services.workflow.engine import WorkflowEngine
 
 
@@ -294,3 +302,150 @@ class TestExecutionValidation:
 
         assert result["status"] == "validation_error"
         assert "errors" in result
+
+
+# ── API endpoint tests ───────────────────────────────────────────────────────
+
+
+@pytest.fixture()
+def _api_engine():
+    """In-memory SQLite engine shared across threads via StaticPool."""
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    yield engine
+    engine.dispose()
+
+
+@pytest.fixture()
+def api_db(_api_engine) -> Session:
+    """Session for seeding test data (same DB as the test client)."""
+    TestSession = sessionmaker(bind=_api_engine, expire_on_commit=False)
+    session = TestSession()
+    try:
+        yield session
+    finally:
+        session.close()
+
+
+@pytest.fixture()
+def client(_api_engine) -> TestClient:
+    """Test client with DB dependency override via StaticPool."""
+    TestSession = sessionmaker(bind=_api_engine, expire_on_commit=False)
+
+    def _override_db():
+        session = TestSession()
+        try:
+            yield session
+        finally:
+            session.close()
+
+    app.dependency_overrides[get_db] = _override_db
+    yield TestClient(app)
+    app.dependency_overrides.clear()
+
+
+def _seed_workflow(db: Session, *, is_preset: bool = False) -> Workflow:
+    """Insert a test workflow with one echo_tool step."""
+    workflow = Workflow(name="Test Workflow", description="For testing", on_error="stop", is_preset=is_preset)
+    workflow.steps.append(
+        WorkflowStep(step_order=0, step_id="s1", tool_name="classify_email", input_template={"email_text": "$input.text"})
+    )
+    db.add(workflow)
+    db.commit()
+    db.refresh(workflow)
+    return workflow
+
+
+class TestWorkflowAPI:
+    """REST API endpoints for workflows."""
+
+    def test_list_workflows_empty(self, client: TestClient) -> None:
+        response = client.get("/api/workflows")
+
+        assert response.status_code == 200
+        assert response.json() == {"workflows": []}
+
+    def test_create_workflow(self, client: TestClient) -> None:
+        response = client.post("/api/workflows", json={
+            "name": "My Workflow",
+            "description": "Test workflow",
+            "on_error": "stop",
+            "steps": [
+                {"step_id": "s1", "tool_name": "classify_email", "input_template": {"email_text": "hello"}},
+            ],
+        })
+
+        assert response.status_code == 201
+        data = response.json()
+        assert data["name"] == "My Workflow"
+        assert len(data["steps"]) == 1
+        assert data["is_preset"] is False
+
+    def test_create_workflow_rejects_unknown_tool(self, client: TestClient) -> None:
+        response = client.post("/api/workflows", json={
+            "name": "Bad Workflow",
+            "steps": [
+                {"step_id": "s1", "tool_name": "nonexistent_tool", "input_template": {}},
+            ],
+        })
+
+        assert response.status_code == 422
+
+    def test_get_workflow(self, client: TestClient, api_db: Session) -> None:
+        workflow = _seed_workflow(api_db)
+
+        response = client.get(f"/api/workflows/{workflow.id}")
+
+        assert response.status_code == 200
+        assert response.json()["name"] == "Test Workflow"
+
+    def test_get_workflow_not_found(self, client: TestClient) -> None:
+        response = client.get("/api/workflows/999")
+
+        assert response.status_code == 404
+
+    def test_delete_workflow(self, client: TestClient, api_db: Session) -> None:
+        workflow = _seed_workflow(api_db, is_preset=False)
+
+        response = client.delete(f"/api/workflows/{workflow.id}")
+
+        assert response.status_code == 204
+
+    def test_delete_preset_workflow_forbidden(self, client: TestClient, api_db: Session) -> None:
+        workflow = _seed_workflow(api_db, is_preset=True)
+
+        response = client.delete(f"/api/workflows/{workflow.id}")
+
+        assert response.status_code == 403
+
+    @patch("app.routers.workflows.TOOL_HANDLERS", MOCK_HANDLERS)
+    @patch("app.routers.workflows._engine", WorkflowEngine(tool_handlers=MOCK_HANDLERS))
+    def test_run_workflow(self, client: TestClient, api_db: Session) -> None:
+        """Run a workflow with a mock tool handler."""
+        workflow = Workflow(name="Echo Workflow", description="", on_error="stop", is_preset=False)
+        workflow.steps.append(
+            WorkflowStep(step_order=0, step_id="s1", tool_name="echo_tool", input_template={"text": "$input.message"})
+        )
+        api_db.add(workflow)
+        api_db.commit()
+        api_db.refresh(workflow)
+
+        response = client.post(
+            f"/api/workflows/{workflow.id}/run",
+            json={"input": {"message": "hello world"}},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["data"]["status"] == "completed"
+        assert data["data"]["steps"][0]["output"]["echo"] == {"text": "hello world"}
+
+    def test_run_workflow_not_found(self, client: TestClient) -> None:
+        response = client.post("/api/workflows/999/run", json={"input": {}})
+
+        assert response.status_code == 404
