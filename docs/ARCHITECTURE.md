@@ -123,6 +123,7 @@ Two concrete pipelines:
 FastAPI serves:
 
 - REST endpoints for each tool, validated with Pydantic models.
+- Scenario endpoints (`/api/scenarios`, `/api/scenarios/{id}`, `/api/scenarios/{id}/run`) for domain-specific business flows.
 - A Server-Sent Events stream for the chat endpoint (`/api/chat`).
 - The static frontend (`frontend/index.html`, `app.js`, `style.css`, `examples.js`).
 - An auto-generated OpenAPI schema (`/openapi.json`).
@@ -140,6 +141,7 @@ tooling (e.g. the Prompt Workbench in Fase 4 might introduce a lightweight setup
 | FastAPI           | Agent core        | Direct Python function calls    |
 | Agent core        | Tools             | In-process dispatch             |
 | Agent core        | TypeScript pipeline | `subprocess` → `npx tsx`     |
+| Scenario runner   | Domain tools/services | In-process orchestration   |
 | Agent core        | Claude API        | Anthropic SDK (HTTPS)           |
 
 ---
