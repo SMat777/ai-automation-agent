@@ -1,7 +1,18 @@
 """Tests for the Agent class — verifies tool routing, result structure, and error handling."""
 
-from agent.agent import AgentResult, AgentStep
+from unittest.mock import MagicMock
+
+from agent.agent import Agent, AgentResult, AgentStep
 from agent.tools import TOOLS, TOOL_HANDLERS
+
+# Tools that should receive the API key for LLM-powered analysis
+LLM_ENABLED_TOOLS = [
+    "summarize",
+    "analyze_document",
+    "extract_data",
+    "classify_email",
+    "draft_email_reply",
+]
 
 
 class TestToolRegistry:
@@ -88,3 +99,42 @@ class TestAgentStep:
         )
         assert step.tool_name == "extract_data"
         assert step.duration_ms == 15
+
+
+class TestApiKeyInjection:
+    """Verify that _execute_tool injects api_key for all LLM-enabled tools."""
+
+    def test_api_key_injected_for_all_llm_tools(self) -> None:
+        """Each LLM-enabled tool should receive api_key when executed."""
+        agent = Agent(api_key="test-key-123")
+        # Use a copy so we don't mutate the global TOOL_HANDLERS
+        agent.tool_handlers = dict(agent.tool_handlers)
+
+        for tool_name in LLM_ENABLED_TOOLS:
+            mock_handler = MagicMock(return_value={"ok": True})
+            agent.tool_handlers[tool_name] = mock_handler
+
+            agent._execute_tool(tool_name, {"text": "hello"})
+
+            call_kwargs = mock_handler.call_args
+            assert call_kwargs.kwargs.get("api_key") == "test-key-123", (
+                f"api_key not injected for tool '{tool_name}'"
+            )
+
+    def test_api_key_not_injected_for_non_llm_tools(self) -> None:
+        """Tools like scrape_url and lookup_order should NOT get api_key."""
+        agent = Agent(api_key="test-key-123")
+        # Use a copy so we don't mutate the global TOOL_HANDLERS
+        agent.tool_handlers = dict(agent.tool_handlers)
+        non_llm_tools = ["scrape_url", "lookup_order", "search_knowledge", "run_pipeline"]
+
+        for tool_name in non_llm_tools:
+            mock_handler = MagicMock(return_value={"ok": True})
+            agent.tool_handlers[tool_name] = mock_handler
+
+            agent._execute_tool(tool_name, {"text": "hello"})
+
+            call_kwargs = mock_handler.call_args
+            assert "api_key" not in (call_kwargs.kwargs or {}), (
+                f"api_key incorrectly injected for non-LLM tool '{tool_name}'"
+            )

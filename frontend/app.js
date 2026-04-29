@@ -37,6 +37,7 @@ function navigateTo(view, options = {}) {
   // View-specific init
   if (view === 'dashboard') loadDashboard();
   if (view === 'knowledge') loadKnowledgeBase();
+  if (view === 'workflows') loadWorkflows();
   if (view === 'scenario' && options.scenario) loadScenario(options.scenario);
 
   // Re-init Lucide icons for new view
@@ -436,6 +437,229 @@ async function deleteDocument(docId) {
   } catch { showToast('Delete failed', 'error'); }
 }
 
+// ── Workflows ────────────────────────────────────────────────────────────────
+
+let currentWorkflowId = null;
+
+async function loadWorkflows() {
+  const list = document.getElementById('workflow-list');
+  const detail = document.getElementById('workflow-detail');
+  if (!list) return;
+
+  // Show list, hide detail
+  list.classList.remove('hidden');
+  detail.classList.add('hidden');
+
+  try {
+    const res = await fetch('/api/workflows');
+    const data = await res.json();
+    const workflows = data.workflows || [];
+
+    if (workflows.length === 0) {
+      list.innerHTML = `
+        <div class="empty-state">
+          <i data-lucide="workflow" class="empty-icon"></i>
+          <p>No workflows configured yet</p>
+        </div>`;
+    } else {
+      list.innerHTML = workflows.map(w => `
+        <button class="workflow-card" onclick="openWorkflow(${w.id})" type="button">
+          <div class="workflow-card-icon">
+            <i data-lucide="${w.is_preset ? 'shield' : 'git-branch'}"></i>
+          </div>
+          <div class="workflow-card-info">
+            <div class="workflow-card-title">
+              <strong>${escapeHtml(w.name)}</strong>
+              ${w.is_preset ? '<span class="preset-badge">Preset</span>' : ''}
+            </div>
+            <span class="workflow-card-desc">${escapeHtml(w.description || 'No description')}</span>
+            <div class="workflow-card-meta">
+              <span>${w.steps?.length || 0} steps</span>
+              <span>·</span>
+              <span>on_error: ${escapeHtml(w.on_error)}</span>
+            </div>
+          </div>
+          <div class="workflow-card-arrow"><i data-lucide="chevron-right"></i></div>
+        </button>
+      `).join('');
+    }
+
+    if (window.lucide) lucide.createIcons();
+  } catch {
+    list.innerHTML = '<p style="color:var(--text-3);text-align:center;padding:2rem">Could not load workflows</p>';
+  }
+}
+
+async function openWorkflow(id) {
+  const list = document.getElementById('workflow-list');
+  const detail = document.getElementById('workflow-detail');
+
+  try {
+    const res = await fetch(`/api/workflows/${id}`);
+    const wf = await res.json();
+    currentWorkflowId = id;
+
+    // Hide list, show detail
+    list.classList.add('hidden');
+    detail.classList.remove('hidden');
+
+    // Populate header
+    document.getElementById('wf-detail-name').textContent = wf.name;
+    document.getElementById('wf-detail-desc').textContent = wf.description || '';
+    document.getElementById('wf-detail-badge').textContent = wf.is_preset ? 'Preset' : 'Custom';
+    document.getElementById('wf-detail-badge').className = `status-pill ${wf.is_preset ? 'ok' : 'info'}`;
+
+    // Render steps visualization
+    const stepsViz = document.getElementById('wf-steps-viz');
+    const steps = wf.steps || [];
+    stepsViz.innerHTML = steps.map((step, i) => `
+      <div class="wf-step-card" id="wf-step-${i}">
+        <div class="wf-step-number">${i + 1}</div>
+        <div class="wf-step-info">
+          <div class="wf-step-id">${escapeHtml(step.step_id)}</div>
+          <div class="wf-step-tool"><i data-lucide="wrench"></i> ${escapeHtml(step.tool_name)}</div>
+          ${Object.keys(step.input_template || {}).length ? `<div class="wf-step-template"><code>${escapeHtml(JSON.stringify(step.input_template))}</code></div>` : ''}
+        </div>
+        <div class="wf-step-status" id="wf-step-status-${i}"></div>
+      </div>
+      ${i < steps.length - 1 ? '<div class="wf-step-connector"><i data-lucide="arrow-down"></i></div>' : ''}
+    `).join('');
+
+    // Generate smart default input
+    const firstStep = steps[0];
+    let defaultInput = {};
+    if (firstStep?.input_template) {
+      const tmpl = firstStep.input_template;
+      for (const [key, val] of Object.entries(tmpl)) {
+        if (typeof val === 'string' && val.startsWith('$input')) {
+          const field = val.replace('$input.', '').replace('$input', 'text');
+          defaultInput[field] = '';
+        }
+      }
+    }
+    if (Object.keys(defaultInput).length === 0) defaultInput = { text: '' };
+    document.getElementById('wf-run-input').value = JSON.stringify(defaultInput, null, 2);
+
+    // Clear previous results
+    document.getElementById('wf-run-result').innerHTML = '';
+
+    if (window.lucide) lucide.createIcons();
+  } catch (e) {
+    showToast('Failed to load workflow', 'error');
+  }
+}
+
+function showWorkflowList() {
+  document.getElementById('workflow-list').classList.remove('hidden');
+  document.getElementById('workflow-detail').classList.add('hidden');
+  currentWorkflowId = null;
+}
+
+async function runWorkflow() {
+  if (!currentWorkflowId) { showToast('Select a workflow first', 'error'); return; }
+
+  const inputEl = document.getElementById('wf-run-input');
+  const resultEl = document.getElementById('wf-run-result');
+  const btn = document.getElementById('btn-wf-run');
+
+  let input = {};
+  try {
+    input = JSON.parse(inputEl.value || '{}');
+  } catch {
+    showToast('Invalid JSON input', 'error');
+    return;
+  }
+
+  btn.disabled = true;
+  resultEl.innerHTML = '<div class="loading-spinner"></div> Running workflow...';
+
+  // Reset step statuses
+  document.querySelectorAll('[id^="wf-step-status-"]').forEach(el => {
+    el.innerHTML = '';
+    el.closest('.wf-step-card').classList.remove('wf-step-done', 'wf-step-error', 'wf-step-running');
+  });
+
+  try {
+    const res = await fetch(`/api/workflows/${currentWorkflowId}/run`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ input }),
+    });
+    const data = await res.json();
+    const result = data.data || data;
+
+    // Update step statuses
+    const steps = result.steps || [];
+    steps.forEach((step, i) => {
+      const statusEl = document.getElementById(`wf-step-status-${i}`);
+      const cardEl = document.getElementById(`wf-step-${i}`);
+      if (statusEl && cardEl) {
+        if (step.status === 'success') {
+          statusEl.innerHTML = `<span class="wf-step-ok">✓</span><span class="wf-step-time">${step.duration_ms}ms</span>`;
+          cardEl.classList.add('wf-step-done');
+        } else {
+          statusEl.innerHTML = `<span class="wf-step-err">✗</span>`;
+          cardEl.classList.add('wf-step-error');
+        }
+      }
+    });
+
+    // Render full result
+    resultEl.innerHTML = renderWorkflowResult(result);
+
+    showToast(result.status === 'completed' ? 'Workflow completed' : 'Workflow finished with errors', result.status === 'completed' ? 'success' : 'error');
+    if (window.lucide) lucide.createIcons();
+  } catch (e) {
+    resultEl.innerHTML = `<div style="color:var(--red)">Error: ${escapeHtml(e.message)}</div>`;
+    showToast('Workflow run failed', 'error');
+  }
+
+  btn.disabled = false;
+}
+
+function renderWorkflowResult(result) {
+  const steps = result.steps || [];
+  const successCount = steps.filter(s => s.status === 'success').length;
+
+  let html = `
+    <div class="scenario-result">
+      <div class="result-header">
+        <h3>Workflow Result</h3>
+        <span class="status-pill ${result.status === 'completed' ? 'ok' : 'warn'}">
+          ${escapeHtml(result.status || 'unknown')}
+        </span>
+      </div>
+      <div class="result-grid two-col">
+        <div class="result-card">
+          <h4>Summary</h4>
+          <div class="metric-row"><span>Steps</span><strong>${steps.length}</strong></div>
+          <div class="metric-row"><span>Successful</span><strong>${successCount}/${steps.length}</strong></div>
+          <div class="metric-row"><span>Total Duration</span><strong>${result.total_duration_ms || 0}ms</strong></div>
+        </div>
+        <div class="result-card">
+          <h4>Final Output</h4>
+          <pre style="max-height:200px;overflow:auto;font-size:0.78rem">${escapeHtml(JSON.stringify(result.final_output || {}, null, 2))}</pre>
+        </div>
+      </div>`;
+
+  // Step-by-step details
+  steps.forEach((step, i) => {
+    const isSuccess = step.status === 'success';
+    html += `
+      <div class="result-card">
+        <h4>
+          <span class="wf-step-indicator ${isSuccess ? 'ok' : 'err'}">${isSuccess ? '✓' : '✗'}</span>
+          Step ${i + 1}: ${escapeHtml(step.step_id)} → ${escapeHtml(step.tool_name)}
+          <span class="wf-step-duration">${step.duration_ms}ms</span>
+        </h4>
+        <pre style="max-height:150px;overflow:auto;font-size:0.75rem">${escapeHtml(JSON.stringify(step.output || step.error || {}, null, 2))}</pre>
+      </div>`;
+  });
+
+  html += '</div>';
+  return html;
+}
+
 // ── Tool Functions (Process, Analyze, Extract, Summarize, Pipeline) ─────────
 
 async function runProcess() {
@@ -507,8 +731,9 @@ async function runAnalyze() {
       body: JSON.stringify({ text, focus }),
     });
     const data = await res.json();
-    result.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+    result.innerHTML = renderAnalyzeResult(data);
     showToast('Analysis complete', 'success');
+    if (window.lucide) lucide.createIcons();
   } catch (e) {
     result.innerHTML = `<div style="color:var(--red)">Error: ${e.message}</div>`;
   }
@@ -534,8 +759,9 @@ async function runExtract() {
       body: JSON.stringify({ text, fields, strategy }),
     });
     const data = await res.json();
-    result.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+    result.innerHTML = renderExtractResult(data);
     showToast('Extraction complete', 'success');
+    if (window.lucide) lucide.createIcons();
   } catch (e) {
     result.innerHTML = `<div style="color:var(--red)">Error: ${e.message}</div>`;
   }
@@ -594,6 +820,104 @@ async function runPipeline() {
     result.innerHTML = `<div style="color:var(--red)">Error: ${e.message}</div>`;
   }
   btn.disabled = false;
+}
+
+// ── Structured Tool Result Renderers ─────────────────────────────────────────
+
+function renderAnalyzeResult(data) {
+  const d = data.data || data;
+  const method = d.method || 'rule_based';
+  const stats = d.statistics || {};
+  const entities = d.entities || {};
+  const keyPoints = d.key_points || [];
+  const sections = d.sections || [];
+
+  return `
+    <div class="scenario-result">
+      <div class="result-header">
+        <h3>Document Analysis</h3>
+        <div style="display:flex;gap:0.4rem">
+          <span class="status-pill ok">${escapeHtml(d.document_type || 'unknown')}</span>
+          <span class="status-pill ${method === 'ai' ? 'info' : 'ok'}">${method === 'ai' ? '🤖 AI' : '📏 Rule-based'}</span>
+        </div>
+      </div>
+
+      <div class="result-grid two-col">
+        <div class="result-card">
+          <h4>Statistics</h4>
+          <div class="metric-row"><span>Words</span><strong>${stats.word_count || 0}</strong></div>
+          <div class="metric-row"><span>Sentences</span><strong>${stats.sentence_count || 0}</strong></div>
+          <div class="metric-row"><span>Paragraphs</span><strong>${stats.paragraph_count || 0}</strong></div>
+          <div class="metric-row"><span>Lines</span><strong>${stats.line_count || 0}</strong></div>
+          <div class="metric-row"><span>Focus</span><strong>${escapeHtml(d.focus || 'general')}</strong></div>
+        </div>
+        <div class="result-card">
+          <h4>Key Points</h4>
+          ${keyPoints.length ? `<ul class="key-points-list">${keyPoints.map(p => `<li>${escapeHtml(p)}</li>`).join('')}</ul>` : '<p class="muted">No key points extracted.</p>'}
+        </div>
+      </div>
+
+      ${sections.length ? `
+      <div class="result-card">
+        <h4>Document Structure</h4>
+        <div class="section-tree">${sections.map(s => `<div class="section-item" style="padding-left:${(s.level - 1) * 1.2}rem"><span class="section-level">H${s.level}</span> ${escapeHtml(s.title)}</div>`).join('')}</div>
+      </div>` : ''}
+
+      ${Object.values(entities).some(v => v.length > 0) ? `
+      <div class="result-card">
+        <h4>Entities</h4>
+        ${renderEntityBadges(entities)}
+      </div>` : ''}
+
+      ${d.summary ? `
+      <div class="result-card">
+        <h4>AI Summary</h4>
+        <p style="font-size:0.85rem;line-height:1.5">${escapeHtml(d.summary)}</p>
+      </div>` : ''}
+    </div>
+  `;
+}
+
+function renderExtractResult(data) {
+  const d = data.data || data;
+  const method = d.method || 'rule_based';
+  const extracted = d.extracted || {};
+  const entries = Object.entries(extracted);
+
+  return `
+    <div class="scenario-result">
+      <div class="result-header">
+        <h3>Data Extraction</h3>
+        <div style="display:flex;gap:0.4rem">
+          <span class="status-pill ${d.fields_missing === 0 ? 'ok' : 'warn'}">${d.fields_found || 0}/${entries.length} found</span>
+          <span class="status-pill ${method === 'ai' ? 'info' : 'ok'}">${method === 'ai' ? '🤖 AI-assisted' : '📏 Rule-based'}</span>
+        </div>
+      </div>
+
+      <div class="result-card">
+        <h4>Extracted Fields</h4>
+        <div class="extract-table">
+          ${entries.map(([key, val]) => `
+            <div class="extract-row">
+              <span class="extract-field">${escapeHtml(key)}</span>
+              <span class="extract-value ${val === null ? 'missing' : 'found'}">
+                ${val !== null ? escapeHtml(String(val)) : 'Not found'}
+              </span>
+              ${d.ai_assisted_fields?.includes(key) ? '<span class="extract-ai-badge">AI</span>' : ''}
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <div class="result-card">
+        <h4>Strategy</h4>
+        <div class="metric-row"><span>Strategy</span><strong>${escapeHtml(d.strategy || 'auto')}</strong></div>
+        ${d.strategies_used ? `<div class="metric-row"><span>Strategies used</span><strong>${d.strategies_used.join(', ')}</strong></div>` : ''}
+        <div class="metric-row"><span>Fields found</span><strong>${d.fields_found || 0}</strong></div>
+        <div class="metric-row"><span>Fields missing</span><strong>${d.fields_missing || 0}</strong></div>
+      </div>
+    </div>
+  `;
 }
 
 // ── Chat ─────────────────────────────────────────────────────────────────────
@@ -710,6 +1034,7 @@ document.addEventListener('keydown', e => {
     else if (currentView === 'pipeline') runPipeline();
     else if (currentView === 'chat') sendChat();
     else if (currentView === 'scenario') runScenario();
+    else if (currentView === 'workflows') runWorkflow();
   }
 });
 
@@ -720,7 +1045,22 @@ function loadExample(tool, key) {
   const data = window.EXAMPLES[tool][key];
   const textarea = document.getElementById(`${tool}-text`);
   if (textarea) textarea.value = data.text || '';
-  if (data.fields) document.getElementById(`${tool}-fields`).value = data.fields.join(', ');
+
+  // Populate tool-specific fields
+  const fieldsEl = document.getElementById(`${tool}-fields`);
+  if (fieldsEl && data.fields) {
+    fieldsEl.value = Array.isArray(data.fields) ? data.fields.join(', ') : data.fields;
+  }
+  const strategyEl = document.getElementById(`${tool}-strategy`);
+  if (strategyEl && data.strategy) strategyEl.value = data.strategy;
+  const focusEl = document.getElementById(`${tool}-focus`);
+  if (focusEl && data.focus) focusEl.value = data.focus;
+  const formatEl = document.getElementById(`${tool}-format`);
+  if (formatEl && data.format) formatEl.value = data.format;
+  const pointsEl = document.getElementById(`${tool}-points`);
+  if (pointsEl && data.max_points) pointsEl.value = data.max_points;
+  const typeEl = document.getElementById(`${tool}-type`);
+  if (typeEl && data.document_type) typeEl.value = data.document_type;
 }
 
 // ── Init ─────────────────────────────────────────────────────────────────────

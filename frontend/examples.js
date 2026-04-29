@@ -1,6 +1,8 @@
 // ── Pre-loaded example data for each tool ───────────────────────────────────
 
-const EXAMPLES = {
+/* eslint-disable no-unused-vars */
+// Exposed as window.EXAMPLES for use in app.js loadExample()
+const EXAMPLES = window.EXAMPLES = {
 
   process: {
     'invoice': {
@@ -108,7 +110,7 @@ Next Meeting: 2026-04-28, 10:00`,
   },
 
   analyze: {
-    'job-posting': {
+    'job': {
       text: `AI & Automation Intern — Columbus
 
 Are you passionate about AI, automation, cloud technologies, or building smart tools that solve real business problems?
@@ -284,73 +286,5 @@ One notable trend is the growing adoption of large language models and automatio
   },
 };
 
-// ── Demo loaders ────────────────────────────────────────────────────────────
-
-const DEMO_MAP = {
-  'process-invoice':   { tool: 'process',   example: 'invoice' },
-  'analyze-job':       { tool: 'analyze',   example: 'job-posting' },
-  'extract-invoice':   { tool: 'extract',   example: 'invoice' },
-  'summarize-report':  { tool: 'summarize', example: 'business' },
-  'pipeline-github':   { tool: 'pipeline',  example: 'github' },
-};
-
-function loadDemo(demoId) {
-  const mapping = DEMO_MAP[demoId];
-  if (!mapping) return;
-
-  // Switch to tool tab
-  switchToTool(mapping.tool);
-
-  // Load example and auto-run
-  if (mapping.tool === 'process') {
-    loadExample('process', mapping.example);
-    setTimeout(() => runProcess(), 400);
-  } else if (mapping.tool === 'pipeline') {
-    selectPipeline(mapping.example === 'github' ? 'github' : 'posts');
-    setTimeout(() => runPipeline(), 300);
-  } else {
-    loadExample(mapping.tool, mapping.example);
-    // Auto-run after a brief moment so user sees the data load
-    setTimeout(() => {
-      const runners = { analyze: runAnalyze, extract: runExtract, summarize: runSummarize };
-      runners[mapping.tool]();
-    }, 400);
-  }
-
-  // Scroll to tool panel
-  document.getElementById('tool-nav').scrollIntoView({ behavior: 'smooth' });
-}
-
-function loadExample(tool, exampleKey) {
-  if (!exampleKey || !EXAMPLES[tool]?.[exampleKey]) return;
-  const ex = EXAMPLES[tool][exampleKey];
-
-  switch (tool) {
-    case 'process':
-      document.getElementById('process-text').value = ex.text;
-      document.getElementById('process-type').value = ex.document_type || 'auto';
-      break;
-    case 'analyze':
-      document.getElementById('analyze-text').value = ex.text;
-      document.getElementById('analyze-focus').value = ex.focus || 'general';
-      break;
-    case 'extract':
-      document.getElementById('extract-text').value = ex.text;
-      document.getElementById('extract-fields').value = ex.fields;
-      document.getElementById('extract-strategy').value = ex.strategy || 'auto';
-      break;
-    case 'summarize':
-      document.getElementById('summarize-text').value = ex.text;
-      document.getElementById('summarize-format').value = ex.format || 'bullets';
-      document.getElementById('summarize-points').value = ex.max_points || 5;
-      break;
-  }
-}
-
-function switchToTool(tool) {
-  document.querySelectorAll('.tool-tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.tool-panel').forEach(p => p.classList.remove('active'));
-  document.querySelector(`[data-tool="${tool}"]`).classList.add('active');
-  document.getElementById(`panel-${tool}`).classList.add('active');
-  hideResult();
-}
+// Dead code removed: DEMO_MAP, loadDemo, switchToTool, duplicate loadExample
+// The active loadExample() lives in app.js

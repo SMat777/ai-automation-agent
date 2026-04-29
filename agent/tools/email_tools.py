@@ -1,14 +1,20 @@
-"""Email processing tools — classify intent and draft replies.
+"""Email processing tools — AI-powered with rule-based fallback.
 
 These tools enable the agent to function as an email triage system:
-1. classify_email — detect category, priority, and intent
-2. draft_email_reply — generate a professional response
+1. classify_email — AI-powered classification with keyword fallback
+2. draft_email_reply — AI-generated replies with template fallback
 """
 
 from __future__ import annotations
 
+import json
+import logging
 import re
 from typing import Any
+
+from anthropic import Anthropic
+
+logger = logging.getLogger(__name__)
 
 EMAIL_CLASSIFY_TOOL = {
     "name": "classify_email",
@@ -73,9 +79,13 @@ _HIGH_PRIORITY_SIGNALS = [
 
 def handle_classify_email(
     email_text: str | None = None,
+    api_key: str | None = None,
     **kwargs: Any,
 ) -> dict[str, Any]:
     """Classify an email by category, priority, and intent.
+
+    Uses Claude when api_key is provided for intelligent classification.
+    Falls back to keyword-based scoring without api_key.
 
     Supports both direct keyword arguments (agent dispatch path) and the
     legacy dict-based call style used in older tests/helpers.
@@ -84,6 +94,7 @@ def handle_classify_email(
     if isinstance(email_text, dict):
         params = email_text
         email_text = params.get("email_text")
+        api_key = params.get("api_key", api_key)
 
     # Extra fallback for callers that pass a "params" kwarg explicitly
     if not email_text and isinstance(kwargs.get("params"), dict):
@@ -93,9 +104,20 @@ def handle_classify_email(
     if not text:
         return {"error": "Missing required parameter: email_text"}
 
+    # AI path
+    if api_key:
+        try:
+            ai_result = _ai_classify(text, api_key)
+            # Always include entities from regex (cheap and reliable)
+            ai_result["entities"] = _extract_email_entities(text)
+            ai_result["method"] = "ai"
+            return ai_result
+        except Exception as e:
+            logger.warning("AI classification failed, falling back: %s", e)
+
+    # Rule-based fallback
     lower = text.lower()
 
-    # Detect category
     category = "general"
     category_scores: dict[str, int] = {}
     for cat, keywords in _CATEGORY_KEYWORDS.items():
@@ -106,14 +128,10 @@ def handle_classify_email(
     if category_scores:
         category = max(category_scores, key=category_scores.get)  # type: ignore[arg-type]
 
-    # Detect priority
     high_signals = sum(1 for s in _HIGH_PRIORITY_SIGNALS if s in lower)
     priority = "high" if high_signals >= 1 else "medium" if len(text) > 200 else "low"
 
-    # Detect intent
     intent = _detect_intent(lower)
-
-    # Extract entities
     entities = _extract_email_entities(text)
 
     return {
@@ -122,6 +140,7 @@ def handle_classify_email(
         "intent": intent,
         "entities": entities,
         "confidence": min(0.95, 0.5 + (len(category_scores) * 0.15)),
+        "method": "rule_based",
     }
 
 
@@ -129,9 +148,13 @@ def handle_draft_email(
     context: str | None = None,
     tone: str = "professional",
     include_order_info: bool = False,
+    api_key: str | None = None,
     **kwargs: Any,
 ) -> dict[str, Any]:
     """Draft a professional email reply.
+
+    Uses Claude when api_key is provided for context-aware drafting.
+    Falls back to template-based drafting without api_key.
 
     Supports both direct keyword arguments (agent dispatch path) and the
     legacy dict-based call style used in older tests/helpers.
@@ -142,6 +165,7 @@ def handle_draft_email(
         context = params.get("context")
         tone = params.get("tone", tone)
         include_order_info = params.get("include_order_info", include_order_info)
+        api_key = params.get("api_key", api_key)
 
     # Extra fallback for callers that pass a "params" kwarg explicitly
     if not context and isinstance(kwargs.get("params"), dict):
@@ -153,13 +177,27 @@ def handle_draft_email(
     if not context:
         return {"error": "Missing required parameter: context"}
 
+    # AI path
+    if api_key:
+        try:
+            draft = _ai_draft(context, tone, include_order_info, api_key)
+            return {
+                "draft": draft,
+                "tone": tone,
+                "needs_review": True,
+                "method": "ai",
+                "note": "AI-generated draft — review before sending.",
+            }
+        except Exception as e:
+            logger.warning("AI drafting failed, falling back to template: %s", e)
+
+    # Template fallback
     greeting = "Dear valued customer,"
     if tone == "empathetic":
         greeting = "Dear customer,"
     elif tone == "formal":
         greeting = "Dear Sir/Madam,"
 
-    # Build draft based on context
     draft_parts = [
         greeting,
         "",
@@ -186,8 +224,86 @@ def handle_draft_email(
         "draft": "\n".join(draft_parts),
         "tone": tone,
         "needs_review": True,
+        "method": "template",
         "note": "This draft should be reviewed by a human before sending.",
     }
+
+
+# ── AI-powered functions ──────────────────────────────────────────────────────
+
+
+def _ai_classify(email_text: str, api_key: str) -> dict[str, Any]:
+    """Use Claude to classify an email with genuine understanding."""
+    client = Anthropic(api_key=api_key)
+
+    truncated = email_text[:5_000] if len(email_text) > 5_000 else email_text
+
+    response = client.messages.create(
+        model="claude-sonnet-4-20250514",
+        max_tokens=512,
+        messages=[
+            {
+                "role": "user",
+                "content": (
+                    "Classify this email. Return a JSON object with:\n"
+                    '- "category": one of "order_inquiry", "complaint", '
+                    '"billing", "technical", "general"\n'
+                    '- "priority": "high", "medium", or "low"\n'
+                    '- "intent": the primary intent in snake_case\n'
+                    '- "confidence": 0.0-1.0\n'
+                    '- "reasoning": one sentence explaining the classification\n\n'
+                    "Return ONLY valid JSON.\n\n"
+                    f"Email:\n{truncated}"
+                ),
+            }
+        ],
+    )
+
+    block = response.content[0]
+    raw = block.text if hasattr(block, "text") else str(block)
+
+    cleaned = raw.strip()
+    if cleaned.startswith("```"):
+        cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
+        cleaned = re.sub(r"\s*```$", "", cleaned)
+
+    return json.loads(cleaned)  # type: ignore[no-any-return]
+
+
+def _ai_draft(
+    context: str, tone: str, include_order_info: bool, api_key: str
+) -> str:
+    """Use Claude to draft a context-aware email reply."""
+    client = Anthropic(api_key=api_key)
+
+    order_instruction = (
+        " Include relevant order information in the reply."
+        if include_order_info
+        else ""
+    )
+
+    response = client.messages.create(
+        model="claude-sonnet-4-20250514",
+        max_tokens=1024,
+        messages=[
+            {
+                "role": "user",
+                "content": (
+                    f"Draft a {tone} email reply for the following situation:\n\n"
+                    f"{context}\n\n"
+                    f"Tone: {tone}.{order_instruction}\n"
+                    "Write ONLY the email text — no JSON, no explanation. "
+                    "Keep it concise and professional."
+                ),
+            }
+        ],
+    )
+
+    block = response.content[0]
+    return block.text if hasattr(block, "text") else str(block)
+
+
+# ── Rule-based helpers ────────────────────────────────────────────────────────
 
 
 def _detect_intent(text: str) -> str:
