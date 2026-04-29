@@ -6,6 +6,10 @@ Routers live in app/routers/; business logic in app/services/.
 
 from __future__ import annotations
 
+import logging
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
+
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -25,14 +29,39 @@ from app.routers import (
     stats,
     summarize,
     upload,
+    workflows,
 )
 
 load_dotenv()
 
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(application: FastAPI) -> AsyncGenerator[None, None]:
+    """Application startup and shutdown events."""
+    # Startup: seed preset workflows
+    from app.db.database import SessionLocal
+    from app.services.workflow.seed import seed_preset_workflows
+
+    db = SessionLocal()
+    try:
+        count = seed_preset_workflows(db)
+        if count:
+            logger.info("Seeded %d preset workflow(s) on startup", count)
+    finally:
+        db.close()
+
+    yield  # Application runs here
+
+    # Shutdown (nothing to clean up yet)
+
+
 app = FastAPI(
     title="AI Automation Agent",
     description="AI-powered document analysis, data extraction, and automation pipelines",
-    version="0.4.0",
+    version="0.5.0",
+    lifespan=lifespan,
 )
 
 # CORS is wide open for the current phase; ADR 004 / Fase 2 will tighten this.
@@ -59,6 +88,7 @@ app.include_router(upload.router)  # prefix built-in
 app.include_router(knowledge.router)  # prefix built-in
 app.include_router(scenarios.router)  # prefix built-in
 app.include_router(stats.router)  # prefix built-in
+app.include_router(workflows.router)  # prefix built-in
 
 
 # ── Frontend ─────────────────────────────────────────────────────────────────
