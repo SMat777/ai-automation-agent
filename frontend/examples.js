@@ -1,6 +1,8 @@
 // ── Pre-loaded example data for each tool ───────────────────────────────────
 
-const EXAMPLES = {
+/* eslint-disable no-unused-vars */
+// Exposed as window.EXAMPLES for use in app.js loadExample()
+const EXAMPLES = window.EXAMPLES = {
 
   process: {
     'invoice': {

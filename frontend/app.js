@@ -1045,7 +1045,22 @@ function loadExample(tool, key) {
   const data = window.EXAMPLES[tool][key];
   const textarea = document.getElementById(`${tool}-text`);
   if (textarea) textarea.value = data.text || '';
-  if (data.fields) document.getElementById(`${tool}-fields`).value = data.fields.join(', ');
+
+  // Populate tool-specific fields
+  const fieldsEl = document.getElementById(`${tool}-fields`);
+  if (fieldsEl && data.fields) {
+    fieldsEl.value = Array.isArray(data.fields) ? data.fields.join(', ') : data.fields;
+  }
+  const strategyEl = document.getElementById(`${tool}-strategy`);
+  if (strategyEl && data.strategy) strategyEl.value = data.strategy;
+  const focusEl = document.getElementById(`${tool}-focus`);
+  if (focusEl && data.focus) focusEl.value = data.focus;
+  const formatEl = document.getElementById(`${tool}-format`);
+  if (formatEl && data.format) formatEl.value = data.format;
+  const pointsEl = document.getElementById(`${tool}-points`);
+  if (pointsEl && data.max_points) pointsEl.value = data.max_points;
+  const typeEl = document.getElementById(`${tool}-type`);
+  if (typeEl && data.document_type) typeEl.value = data.document_type;
 }
 
 // ── Init ─────────────────────────────────────────────────────────────────────
