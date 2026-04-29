@@ -8,6 +8,11 @@ You have access to tools that let you:
 - Extract specific data points from text (key-value pairs, tables, lists)
 - Summarize content into concise reports
 - Run data pipelines to fetch, process, and aggregate data from external APIs
+- Scrape web pages to fetch and extract content from URLs
+- Search a knowledge base of uploaded documents (RAG)
+- Classify emails by category, priority, and intent
+- Draft professional email replies
+- Look up order status information
 
 Available pipelines:
 - "posts" — fetches user posting activity from JSONPlaceholder and aggregates by user

@@ -17,6 +17,9 @@ openai>=1.30.0             # Embeddings (text-embedding-3-small)
 pymupdf>=1.24.0            # PDF text extraction
 python-docx>=1.1.0         # DOCX text extraction
 
+# Web Scraping
+beautifulsoup4>=4.12.0     # HTML parsing for scrape_url tool
+
 # Persistence
 sqlalchemy>=2.0.36
 alembic>=1.14.0
