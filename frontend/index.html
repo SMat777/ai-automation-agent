@@ -52,6 +52,13 @@
       </div>
 
       <div class="nav-section">
+        <span class="nav-label">Automation</span>
+        <button class="nav-item" data-view="workflows" type="button">
+          <i data-lucide="workflow"></i> Workflows
+        </button>
+      </div>
+
+      <div class="nav-section">
         <span class="nav-label">Tools</span>
         <button class="nav-item" data-view="process" type="button">
           <i data-lucide="zap"></i> Process
@@ -202,6 +209,57 @@
               <div class="suggested-prompts" id="suggested-prompts"></div>
             </div>
           </div>
+        </div>
+      </section>
+
+      <!-- ═══ WORKFLOWS VIEW ════════════════════════════════════════════════ -->
+      <section id="view-workflows" class="view">
+        <div class="view-header">
+          <h1><i data-lucide="workflow"></i> Workflows</h1>
+          <p class="view-subtitle">Multi-step tool automation with variable passing</p>
+        </div>
+
+        <!-- Workflow list -->
+        <div id="workflow-list" class="workflow-list">
+          <div class="empty-state">
+            <i data-lucide="workflow" class="empty-icon"></i>
+            <p>Loading workflows...</p>
+          </div>
+        </div>
+
+        <!-- Workflow detail (hidden by default) -->
+        <div id="workflow-detail" class="workflow-detail hidden">
+          <button class="back-btn" onclick="showWorkflowList()" type="button">
+            <i data-lucide="arrow-left"></i> All Workflows
+          </button>
+          <div class="workflow-detail-header">
+            <div>
+              <h2 id="wf-detail-name"></h2>
+              <p id="wf-detail-desc" class="view-subtitle"></p>
+            </div>
+            <div class="workflow-detail-badges">
+              <span class="status-pill ok" id="wf-detail-badge"></span>
+            </div>
+          </div>
+
+          <!-- Step visualization -->
+          <div class="workflow-steps-viz" id="wf-steps-viz"></div>
+
+          <!-- Run workflow -->
+          <div class="workflow-run-section">
+            <div class="input-group">
+              <label for="wf-run-input">Workflow Input (JSON)</label>
+              <textarea id="wf-run-input" rows="4" placeholder='{"text": "Your input here..."}'></textarea>
+            </div>
+            <button class="btn-run" id="btn-wf-run" onclick="runWorkflow()" type="button">
+              <i data-lucide="play"></i>
+              <span class="btn-label">Run Workflow</span>
+              <kbd class="kbd-hint">⌘↵</kbd>
+            </button>
+          </div>
+
+          <!-- Run result -->
+          <div id="wf-run-result" class="workflow-run-result"></div>
         </div>
       </section>
 
@@ -528,8 +586,8 @@
             </div>
           </div>
           <div class="about-stats" id="about-stats">
-            <div class="stat-item"><strong id="about-test-count">156+</strong><span>Tests Passing</span></div>
-            <div class="stat-item"><strong>8</strong><span>Agent Tools</span></div>
+            <div class="stat-item"><strong id="about-test-count">223+</strong><span>Tests Passing</span></div>
+            <div class="stat-item"><strong>9</strong><span>Agent Tools</span></div>
             <div class="stat-item"><strong>4</strong><span>Industry Scenarios</span></div>
             <div class="stat-item"><strong>TDD</strong><span>Workflow</span></div>
           </div>

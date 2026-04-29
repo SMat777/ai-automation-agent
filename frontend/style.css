@@ -871,6 +871,170 @@ textarea:focus, input:focus, select:focus {
 .step-info span { font-size: 0.72rem; color: var(--text-3); }
 .process-step .step-time { font-size: 0.72rem; color: var(--text-3); font-variant-numeric: tabular-nums; }
 
+/* ── Workflows ─────────────────────────────────────────────────────────────── */
+
+.workflow-list { display: flex; flex-direction: column; gap: 0.5rem; }
+.workflow-list.hidden { display: none; }
+.workflow-detail.hidden { display: none; }
+
+.workflow-card {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  width: 100%;
+  padding: 1rem 1.2rem;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  cursor: pointer;
+  transition: all var(--t);
+  text-align: left;
+  font-family: inherit;
+  color: var(--text-1);
+}
+.workflow-card:hover {
+  border-color: var(--accent);
+  background: var(--bg-3);
+  box-shadow: 0 0 20px rgba(108,127,216,0.08);
+  transform: translateY(-1px);
+}
+
+.workflow-card-icon {
+  width: 38px; height: 38px;
+  background: var(--accent-soft);
+  border-radius: var(--r-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.workflow-card-icon i { width: 18px; height: 18px; color: var(--accent); }
+
+.workflow-card-info { flex: 1; }
+.workflow-card-title { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.15rem; }
+.workflow-card-title strong { font-size: 0.88rem; }
+.workflow-card-desc { font-size: 0.78rem; color: var(--text-3); line-height: 1.4; display: block; }
+.workflow-card-meta { font-size: 0.7rem; color: var(--text-3); margin-top: 0.3rem; display: flex; gap: 0.3rem; }
+
+.workflow-card-arrow { color: var(--text-3); flex-shrink: 0; }
+.workflow-card-arrow i { width: 16px; height: 16px; }
+
+.preset-badge {
+  display: inline-block;
+  padding: 0.1rem 0.4rem;
+  background: var(--green-soft);
+  border: 1px solid rgba(76,175,125,0.25);
+  border-radius: 8px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--green);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.status-pill.info {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: rgba(108,127,216,0.25);
+}
+
+.workflow-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.2rem;
+}
+.workflow-detail-header h2 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.workflow-steps-viz {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  margin-bottom: 1.5rem;
+}
+
+.wf-step-card {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  width: 100%;
+  max-width: 500px;
+  padding: 0.8rem 1rem;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  transition: all var(--t);
+}
+.wf-step-card.wf-step-done { border-color: rgba(76,175,125,0.4); background: var(--green-soft); }
+.wf-step-card.wf-step-error { border-color: rgba(212,88,88,0.4); background: var(--red-soft); }
+.wf-step-card.wf-step-running { border-color: var(--accent); background: var(--accent-glow); }
+
+.wf-step-number {
+  width: 28px; height: 28px;
+  background: var(--accent-soft);
+  border: 1px solid rgba(108,127,216,0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.wf-step-info { flex: 1; min-width: 0; }
+.wf-step-id { font-size: 0.82rem; font-weight: 600; }
+.wf-step-tool { font-size: 0.72rem; color: var(--text-3); display: flex; align-items: center; gap: 0.3rem; }
+.wf-step-tool i { width: 12px; height: 12px; }
+.wf-step-template { margin-top: 0.3rem; }
+.wf-step-template code {
+  font-size: 0.68rem;
+  color: var(--text-3);
+  background: var(--bg-1);
+  padding: 0.15rem 0.4rem;
+  border-radius: 3px;
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wf-step-status { flex-shrink: 0; display: flex; align-items: center; gap: 0.3rem; }
+.wf-step-ok { color: var(--green); font-weight: 700; }
+.wf-step-err { color: var(--red); font-weight: 700; }
+.wf-step-time { font-size: 0.7rem; color: var(--text-3); font-variant-numeric: tabular-nums; }
+
+.wf-step-connector { color: var(--text-3); padding: 0.2rem 0; display: flex; justify-content: center; }
+.wf-step-connector i { width: 16px; height: 16px; }
+
+.workflow-run-section {
+  margin-bottom: 1rem;
+}
+
+.workflow-run-result:empty { display: none; }
+.workflow-run-result { margin-top: 1rem; }
+
+.wf-step-indicator {
+  display: inline-flex;
+  width: 18px; height: 18px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 0.7rem;
+  font-weight: 700;
+  margin-right: 0.3rem;
+}
+.wf-step-indicator.ok { background: var(--green-soft); color: var(--green); }
+.wf-step-indicator.err { background: var(--red-soft); color: var(--red); }
+.wf-step-duration { font-size: 0.7rem; color: var(--text-3); font-weight: 400; margin-left: auto; }
+
 /* ── Pipeline ─────────────────────────────────────────────────────────────── */
 
 .pipeline-cards {
@@ -933,6 +1097,69 @@ textarea:focus, input:focus, select:focus {
   word-break: break-word;
 }
 .result-area:empty { display: none; }
+
+/* ── Structured Tool Results ───────────────────────────────────────────────── */
+
+.key-points-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.key-points-list li {
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--text-1);
+}
+.key-points-list li:last-child { border-bottom: none; }
+.key-points-list li::before { content: '•'; color: var(--accent); font-weight: 700; margin-right: 0.5rem; }
+
+.section-tree { display: flex; flex-direction: column; gap: 0.2rem; }
+.section-item {
+  font-size: 0.82rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2rem 0;
+}
+.section-level {
+  display: inline-flex;
+  width: 22px; height: 18px;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-soft);
+  border-radius: 3px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.extract-table { display: flex; flex-direction: column; gap: 0; }
+.extract-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.82rem;
+}
+.extract-row:last-child { border-bottom: none; }
+.extract-field { color: var(--text-3); min-width: 120px; flex-shrink: 0; }
+.extract-value { flex: 1; color: var(--text-1); font-weight: 500; }
+.extract-value.missing { color: var(--red); font-weight: 400; font-style: italic; }
+.extract-value.found { color: var(--green); }
+.extract-ai-badge {
+  padding: 0.08rem 0.3rem;
+  background: var(--accent-soft);
+  border: 1px solid rgba(108,127,216,0.25);
+  border-radius: 4px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--accent);
+  flex-shrink: 0;
+}
 
 /* ── About Section ────────────────────────────────────────────────────────── */
 
