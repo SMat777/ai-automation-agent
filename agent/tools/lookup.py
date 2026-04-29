@@ -65,16 +65,24 @@ _MOCK_ORDERS: dict[str, dict[str, Any]] = {
 }
 
 
-def handle_lookup_order(params: dict[str, Any]) -> dict[str, Any]:
+def handle_lookup_order(
+    order_id: str | None = None,
+    **kwargs: Any,
+) -> dict[str, Any]:
     """Look up an order by ID.
 
-    Args:
-        params: Dict with 'order_id'.
-
-    Returns:
-        Order details or not_found status.
+    Supports both direct keyword arguments (agent dispatch path) and the
+    legacy dict-based call style used in older tests/helpers.
     """
-    order_id = params.get("order_id")
+    # Backward compatibility: allow handle_lookup_order({"order_id": ...})
+    if isinstance(order_id, dict):
+        params = order_id
+        order_id = params.get("order_id")
+
+    # Extra fallback for callers that pass a "params" kwarg explicitly
+    if not order_id and isinstance(kwargs.get("params"), dict):
+        order_id = kwargs["params"].get("order_id")
+
     if not order_id:
         return {"error": "Missing required parameter: order_id"}
 

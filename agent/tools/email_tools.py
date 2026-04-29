@@ -71,9 +71,25 @@ _HIGH_PRIORITY_SIGNALS = [
 ]
 
 
-def handle_classify_email(params: dict[str, Any]) -> dict[str, Any]:
-    """Classify an email by category, priority, and intent."""
-    text = params.get("email_text")
+def handle_classify_email(
+    email_text: str | None = None,
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """Classify an email by category, priority, and intent.
+
+    Supports both direct keyword arguments (agent dispatch path) and the
+    legacy dict-based call style used in older tests/helpers.
+    """
+    # Backward compatibility: allow handle_classify_email({"email_text": ...})
+    if isinstance(email_text, dict):
+        params = email_text
+        email_text = params.get("email_text")
+
+    # Extra fallback for callers that pass a "params" kwarg explicitly
+    if not email_text and isinstance(kwargs.get("params"), dict):
+        email_text = kwargs["params"].get("email_text")
+
+    text = email_text
     if not text:
         return {"error": "Missing required parameter: email_text"}
 
@@ -109,13 +125,33 @@ def handle_classify_email(params: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def handle_draft_email(params: dict[str, Any]) -> dict[str, Any]:
-    """Draft a professional email reply."""
-    context = params.get("context")
+def handle_draft_email(
+    context: str | None = None,
+    tone: str = "professional",
+    include_order_info: bool = False,
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """Draft a professional email reply.
+
+    Supports both direct keyword arguments (agent dispatch path) and the
+    legacy dict-based call style used in older tests/helpers.
+    """
+    # Backward compatibility: allow handle_draft_email({"context": ...})
+    if isinstance(context, dict):
+        params = context
+        context = params.get("context")
+        tone = params.get("tone", tone)
+        include_order_info = params.get("include_order_info", include_order_info)
+
+    # Extra fallback for callers that pass a "params" kwarg explicitly
+    if not context and isinstance(kwargs.get("params"), dict):
+        params = kwargs["params"]
+        context = params.get("context")
+        tone = params.get("tone", tone)
+        include_order_info = params.get("include_order_info", include_order_info)
+
     if not context:
         return {"error": "Missing required parameter: context"}
-
-    tone = params.get("tone", "professional")
 
     greeting = "Dear valued customer,"
     if tone == "empathetic":
@@ -130,12 +166,21 @@ def handle_draft_email(params: dict[str, Any]) -> dict[str, Any]:
         "Thank you for reaching out to us.",
         "",
         f"Regarding your inquiry: {context}",
+    ]
+
+    if include_order_info:
+        draft_parts.extend([
+            "",
+            "We have included the latest available order information above for your review.",
+        ])
+
+    draft_parts.extend([
         "",
         "Please don't hesitate to contact us if you need any further assistance.",
         "",
         "Best regards,",
         "Customer Support Team",
-    ]
+    ])
 
     return {
         "draft": "\n".join(draft_parts),

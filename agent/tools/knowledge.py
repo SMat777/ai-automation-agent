@@ -42,20 +42,30 @@ def _get_retriever():  # type: ignore[no-untyped-def]
     return Retriever()
 
 
-def handle_search_knowledge(params: dict[str, Any]) -> dict[str, Any]:
+def handle_search_knowledge(
+    query: str | None = None,
+    n_results: int = 5,
+    **kwargs: Any,
+) -> dict[str, Any]:
     """Execute a knowledge base search and return formatted results.
 
-    Args:
-        params: Dict with 'query' (required) and optional 'n_results'.
-
-    Returns:
-        Dict with status, context string, and source list.
+    Supports both direct keyword arguments (agent dispatch path) and the
+    legacy dict-based call style used in older tests/helpers.
     """
-    query = params.get("query")
+    # Backward compatibility: allow handle_search_knowledge({"query": ...})
+    if isinstance(query, dict):
+        params = query
+        query = params.get("query")
+        n_results = params.get("n_results", n_results)
+
+    # Extra fallback for callers that pass a "params" kwarg explicitly
+    if not query and isinstance(kwargs.get("params"), dict):
+        params = kwargs["params"]
+        query = params.get("query")
+        n_results = params.get("n_results", n_results)
+
     if not query:
         return {"error": "Missing required parameter: query"}
-
-    n_results = params.get("n_results", 5)
 
     try:
         retriever = _get_retriever()
