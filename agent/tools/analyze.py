@@ -1,8 +1,18 @@
-"""Document analysis tool — extracts structure, key points, and entities from text."""
+"""Document analysis tool — AI-powered with rule-based fallback.
+
+Uses Claude for intelligent document analysis when api_key is provided.
+Falls back to regex/keyword-based analysis for offline or demo use.
+"""
 
 from __future__ import annotations
 
+import json
+import logging
 import re
+
+from anthropic import Anthropic
+
+logger = logging.getLogger(__name__)
 
 ANALYZE_TOOL = {
     "name": "analyze_document",
@@ -32,24 +42,55 @@ ANALYZE_TOOL = {
 }
 
 
-def handle_analyze(text: str, focus: str = "general") -> dict:
+def handle_analyze(
+    text: str,
+    focus: str = "general",
+    api_key: str | None = None,
+    **_kwargs: object,
+) -> dict:
     """Analyze document structure, detect type, extract entities and key points.
+
+    Uses Claude when api_key is provided for intelligent analysis.
+    Falls back to regex/keyword-based analysis without api_key.
 
     Args:
         text: The document text to analyze.
         focus: Optional focus area for the analysis.
+        api_key: Anthropic API key. If None, uses rule-based fallback.
 
     Returns:
         Dictionary with document_type, sections, entities, key_points,
-        and statistics.
+        statistics, and method used.
     """
+    # Regex-based features always run (cheap and reliable)
+    entities = _extract_entities(text)
+    sections = _extract_sections(text)
+    statistics = _compute_stats(text)
+
+    if api_key:
+        try:
+            ai_result = _ai_analyze(text, focus, api_key)
+            return {
+                "document_type": ai_result.get("document_type", _detect_type(text)),
+                "sections": sections,
+                "entities": entities,
+                "key_points": ai_result.get("key_points", _extract_key_points(text)),
+                "summary": ai_result.get("summary", ""),
+                "statistics": statistics,
+                "focus": focus,
+                "method": "ai",
+            }
+        except Exception as e:
+            logger.warning("AI analysis failed, falling back to rule-based: %s", e)
+
     return {
         "document_type": _detect_type(text),
-        "sections": _extract_sections(text),
-        "entities": _extract_entities(text),
+        "sections": sections,
+        "entities": entities,
         "key_points": _extract_key_points(text),
-        "statistics": _compute_stats(text),
+        "statistics": statistics,
         "focus": focus,
+        "method": "rule_based",
     }
 
 
@@ -167,3 +208,49 @@ def _compute_stats(text: str) -> dict[str, int]:
         "paragraph_count": len(paragraphs),
         "line_count": len(text.splitlines()),
     }
+
+
+# ── AI-powered analysis ─────────────────────────────────────────────────────
+
+
+def _ai_analyze(text: str, focus: str, api_key: str) -> dict:
+    """Use Claude to analyze a document intelligently.
+
+    Returns a dict with document_type, key_points, and summary.
+    """
+    client = Anthropic(api_key=api_key)
+
+    # Truncate very long documents to avoid excessive token usage
+    truncated = text[:10_000] if len(text) > 10_000 else text
+
+    response = client.messages.create(
+        model="claude-sonnet-4-20250514",
+        max_tokens=1024,
+        messages=[
+            {
+                "role": "user",
+                "content": (
+                    f"Analyze this document with focus on '{focus}'. "
+                    "Return a JSON object with these fields:\n"
+                    '- "document_type": one of "contract", "meeting_notes", "invoice", '
+                    '"email", "report", "academic_paper", "financial_report", '
+                    '"markdown_document", "data_table", "general_text"\n'
+                    '- "key_points": array of 3-5 key insights from the document\n'
+                    '- "summary": one paragraph summary\n\n'
+                    "Return ONLY valid JSON, no markdown formatting.\n\n"
+                    f"Document:\n{truncated}"
+                ),
+            }
+        ],
+    )
+
+    block = response.content[0]
+    raw = block.text if hasattr(block, "text") else str(block)
+
+    # Strip markdown code fences if Claude wraps the JSON
+    cleaned = raw.strip()
+    if cleaned.startswith("```"):
+        cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
+        cleaned = re.sub(r"\s*```$", "", cleaned)
+
+    return json.loads(cleaned)  # type: ignore[no-any-return]

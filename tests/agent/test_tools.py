@@ -1,5 +1,7 @@
 """Tests for agent tools — verifies tool handlers work correctly without API calls."""
 
+from unittest.mock import MagicMock, patch
+
 from agent.tools.analyze import handle_analyze
 from agent.tools.extract import handle_extract
 from agent.tools.summarize import handle_summarize
@@ -99,6 +101,65 @@ class TestAnalyzeKeyPoints:
     def test_respects_focus(self) -> None:
         result = handle_analyze("Text", focus="financial")
         assert result["focus"] == "financial"
+
+
+class TestAnalyzeAiPath:
+    """Verify that analyze_document uses Claude when api_key is provided."""
+
+    def test_ai_path_returns_ai_method(self) -> None:
+        """When api_key is given, method should be 'ai'."""
+        mock_response = MagicMock()
+        mock_response.content = [MagicMock(
+            text='{"document_type": "contract", "key_points": ["Effective date is 2026-01-01", "Governs IP ownership"], "summary": "Employment contract between two parties."}'
+        )]
+
+        with patch("agent.tools.analyze.Anthropic") as mock_cls:
+            mock_cls.return_value.messages.create.return_value = mock_response
+            result = handle_analyze(
+                "This agreement is entered into by Party A and Party B. "
+                "The effective date is January 1, 2026. This contract governs IP ownership.",
+                api_key="test-key",
+            )
+
+        assert result["method"] == "ai"
+        mock_cls.assert_called_once_with(api_key="test-key")
+
+    def test_fallback_when_no_api_key(self) -> None:
+        """Without api_key, method should be 'rule_based'."""
+        result = handle_analyze("Some text for analysis")
+        assert result["method"] == "rule_based"
+
+    def test_ai_path_still_includes_entities_and_stats(self) -> None:
+        """AI path should still include regex-based entities and stats."""
+        mock_response = MagicMock()
+        mock_response.content = [MagicMock(
+            text='{"document_type": "email", "key_points": ["Meeting at 3pm"], "summary": "A meeting invitation."}'
+        )]
+
+        with patch("agent.tools.analyze.Anthropic") as mock_cls:
+            mock_cls.return_value.messages.create.return_value = mock_response
+            result = handle_analyze(
+                "From: alice@example.com\nMeeting on 2026-04-16 at 3pm.",
+                api_key="test-key",
+            )
+
+        # AI provides document_type and key_points
+        assert result["method"] == "ai"
+        # Regex still provides entities and stats
+        assert "alice@example.com" in result["entities"]["emails"]
+        assert result["statistics"]["word_count"] > 0
+
+    def test_falls_back_on_api_error(self) -> None:
+        """If Claude API fails, should fall back to rule-based gracefully."""
+        with patch("agent.tools.analyze.Anthropic") as mock_cls:
+            mock_cls.return_value.messages.create.side_effect = Exception("API error")
+            result = handle_analyze(
+                "# Contract\n\nThis agreement between parties.",
+                api_key="test-key",
+            )
+
+        assert result["method"] == "rule_based"
+        assert result["document_type"] is not None
 
 
 # ── Extract Tool ─────────────────────────────────────────────────────────────
