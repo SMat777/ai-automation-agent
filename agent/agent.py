@@ -354,8 +354,12 @@ class Agent:
         if handler is None:
             return {"error": f"Unknown tool: {name}"}
 
+        # Tools that use Claude directly for AI-powered analysis
+        _llm_tools = {"summarize", "analyze_document", "extract_data",
+                       "classify_email", "draft_email_reply"}
+
         try:
-            if name == "summarize":
+            if name in _llm_tools:
                 params["api_key"] = self.api_key
             return handler(**params)
         except Exception as e:
