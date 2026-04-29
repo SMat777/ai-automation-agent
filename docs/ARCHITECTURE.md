@@ -91,6 +91,12 @@ Each tool is a Python function with metadata: name, description, JSON Schema.
 The agent *does not* hardcode tool logic — it selects tools based on descriptions
 at runtime. This is the essence of tool calling.
 
+**Tool handler contract:** all handlers in `TOOL_HANDLERS` must accept direct
+keyword arguments (`handler(**params)`), because the ReAct loop forwards tool
+payloads from Claude as kwargs. Handlers may optionally support legacy dict-style
+calls for backward compatibility in tests/helpers, but kwargs compatibility is
+required for runtime correctness.
+
 | Tool             | Purpose                                           | Input                   | Output                   |
 |------------------|---------------------------------------------------|-------------------------|--------------------------|
 | `analyze_document` | Detect type, extract entities, structure         | text + focus            | structured analysis      |
