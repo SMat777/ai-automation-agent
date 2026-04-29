@@ -1161,6 +1161,30 @@ textarea:focus, input:focus, select:focus {
   flex-shrink: 0;
 }
 
+/* ── Summarize Result ─────────────────────────────────────────────────────── */
+
+.summary-points {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.summary-points li {
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-1);
+}
+.summary-points li:last-child { border-bottom: none; }
+.summary-points li::before { content: '→'; color: var(--accent); font-weight: 700; margin-right: 0.5rem; }
+
+.summary-paragraph {
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: var(--text-1);
+  margin: 0;
+}
+
 /* ── About Section ────────────────────────────────────────────────────────── */
 
 .about-content { max-width: 700px; }

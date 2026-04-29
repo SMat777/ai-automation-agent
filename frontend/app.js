@@ -786,7 +786,7 @@ async function runSummarize() {
       body: JSON.stringify({ text, format, max_points: maxPoints }),
     });
     const data = await res.json();
-    result.innerHTML = renderMarkdown(data.summary || JSON.stringify(data, null, 2));
+    result.innerHTML = renderSummarizeResult(data);
     showToast('Summary complete', 'success');
   } catch (e) {
     result.innerHTML = `<div style="color:var(--red)">Error: ${e.message}</div>`;
@@ -915,6 +915,54 @@ function renderExtractResult(data) {
         ${d.strategies_used ? `<div class="metric-row"><span>Strategies used</span><strong>${d.strategies_used.join(', ')}</strong></div>` : ''}
         <div class="metric-row"><span>Fields found</span><strong>${d.fields_found || 0}</strong></div>
         <div class="metric-row"><span>Fields missing</span><strong>${d.fields_missing || 0}</strong></div>
+      </div>
+    </div>
+  `;
+}
+
+function renderSummarizeResult(data) {
+  const d = data.data || data;
+  const method = d.method || 'extractive';
+  const format = d.format || 'bullets';
+  const wordCount = d.original_word_count || 0;
+  const sentenceCount = d.sentence_count || 0;
+  const summary = d.summary || '';
+
+  // Estimate summary word count for compression ratio
+  const summaryWordCount = summary.split(/\s+/).filter(Boolean).length;
+  const compression = wordCount > 0 ? Math.round((1 - summaryWordCount / wordCount) * 100) : 0;
+
+  // Render summary content based on format
+  let summaryHtml;
+  if (format === 'bullets' && summary.includes('- ')) {
+    const points = summary.split('\n').filter(l => l.trim().startsWith('- '));
+    summaryHtml = `<ul class="summary-points">${points.map(p => `<li>${escapeHtml(p.replace(/^-\s*/, ''))}</li>`).join('')}</ul>`;
+  } else {
+    summaryHtml = `<p class="summary-paragraph">${escapeHtml(summary)}</p>`;
+  }
+
+  return `
+    <div class="scenario-result">
+      <div class="result-header">
+        <h3>Summarization</h3>
+        <div style="display:flex;gap:0.4rem">
+          <span class="status-pill ${method === 'ai' ? 'info' : 'ok'}">${method === 'ai' ? '🤖 AI' : '📏 Extractive'}</span>
+          <span class="status-pill ok">${format === 'bullets' ? '• Bullets' : '¶ Paragraph'}</span>
+        </div>
+      </div>
+
+      <div class="result-grid two-col">
+        <div class="result-card">
+          <h4>Document Stats</h4>
+          <div class="metric-row"><span>Original words</span><strong>${wordCount.toLocaleString()}</strong></div>
+          <div class="metric-row"><span>Sentences analyzed</span><strong>${sentenceCount}</strong></div>
+          <div class="metric-row"><span>Summary words</span><strong>${summaryWordCount}</strong></div>
+          <div class="metric-row"><span>Compression</span><strong>${compression}% reduced</strong></div>
+        </div>
+        <div class="result-card">
+          <h4>Summary</h4>
+          ${summaryHtml}
+        </div>
       </div>
     </div>
   `;
